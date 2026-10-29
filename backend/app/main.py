@@ -1,4 +1,5 @@
 import logging
+import mimetypes
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -11,10 +12,14 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import get_settings
 from app.db import get_sessionmaker
 from app.models import Role, User
-from app.routers import accounts, auth, campaigns, media, oauth
+from app.routers import accounts, auth, campaigns, media, oauth, push
 from app.security import hash_password
 
 log = logging.getLogger(__name__)
+mimetypes.add_type("application/manifest+json", ".webmanifest")
+
+# Файлы, которые браузер должен перепроверять при каждом запуске, иначе PWA не увидит обновление.
+NO_CACHE = {"index.html", "sw.js", "manifest.webmanifest"}
 
 
 def bootstrap_admin() -> None:
@@ -53,7 +58,7 @@ def create_app() -> FastAPI:
         same_site="lax",
         https_only=settings.session_https_only,
     )
-    for module in (auth, accounts, oauth, media, campaigns):
+    for module in (auth, accounts, oauth, media, campaigns, push):
         app.include_router(module.router)
 
     @app.get("/api/health")
@@ -69,9 +74,10 @@ def create_app() -> FastAPI:
             if path.startswith("api/"):
                 raise HTTPException(404)
             candidate = (dist / path).resolve()
-            if path and candidate.is_file() and candidate.is_relative_to(dist.resolve()):
-                return FileResponse(candidate)
-            return FileResponse(dist / "index.html")
+            if not (path and candidate.is_file() and candidate.is_relative_to(dist.resolve())):
+                candidate = dist / "index.html"
+            headers = {"Cache-Control": "no-cache"} if candidate.name in NO_CACHE else None
+            return FileResponse(candidate, headers=headers)
 
     return app
 

@@ -48,7 +48,7 @@ export default function AuditPage() {
         <Empty title="Событий пока нет" />
       ) : (
         <div className="table-wrap">
-          <table className="table">
+          <table className="table table-cards">
             <thead>
               <tr>
                 <th>Время</th>
@@ -61,14 +61,14 @@ export default function AuditPage() {
             <tbody>
               {items.map((e) => (
                 <tr key={e.id}>
-                  <td className="small nowrap">{formatDateTime(e.created_at)}</td>
-                  <td>{e.actor_name}</td>
-                  <td>{AUDIT_ACTIONS[e.action] ?? e.action}</td>
-                  <td className="small muted">
+                  <td className="small nowrap" data-label="Время">{formatDateTime(e.created_at)}</td>
+                  <td data-label="Пользователь">{e.actor_name}</td>
+                  <td className="cell-main">{AUDIT_ACTIONS[e.action] ?? e.action}</td>
+                  <td className="small muted" data-label="Объект">
                     {e.entity_type}
                     {e.entity_id ? ` #${e.entity_id}` : ""}
                   </td>
-                  <td className="small muted break">{detailsText(e.details)}</td>
+                  <td className="small muted break cell-wide" data-label="Детали">{detailsText(e.details)}</td>
                 </tr>
               ))}
             </tbody>

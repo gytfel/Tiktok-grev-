@@ -824,6 +824,8 @@ def cancel_job(db: Session, job: PublicationJob, user: User | None) -> None:
 
 def _requeue(job: PublicationJob, now: datetime) -> None:
     job.campaign.status = CampaignStatus.RUNNING
+    job.campaign.notified_at = None
+    job.attention_notified_at = None
     job.status = JobStatus.QUEUED
     job.scheduled_at = now
     job.dispatched_at = None

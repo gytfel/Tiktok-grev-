@@ -471,7 +471,7 @@ function AccountPicker({
         <Empty title="Нет аккаунтов">Сначала подключите аккаунты на странице «Аккаунты».</Empty>
       ) : (
         <div className="table-wrap">
-          <table className="table">
+          <table className="table table-cards">
             <thead>
               <tr>
                 <th className="col-check" />
@@ -498,7 +498,7 @@ function AccountPicker({
                         aria-label={`Выбрать ${a.label}`}
                       />
                     </td>
-                    <td>
+                    <td className="cell-main">
                       <div className="who">
                         <Avatar name={a.display_name || a.label} url={a.avatar_url} size={28} />
                         <div>
@@ -507,7 +507,7 @@ function AccountPicker({
                         </div>
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Группы" className={a.groups.length ? "" : "hide-sm"}>
                       <div className="chips">
                         {a.groups.map((g) => (
                           <span className="chip" key={g.id}>
@@ -516,13 +516,13 @@ function AccountPicker({
                         ))}
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Статус">
                       <Badge tone={ACCOUNT_STATUS[a.connection_status].tone}>{ACCOUNT_STATUS[a.connection_status].label}</Badge>
                     </td>
-                    <td className="small">
+                    <td className="small" data-label="Видимость">
                       {a.creator_info?.privacy_level_options?.map((p) => PRIVACY_LABELS[p]).join(", ") || "не проверено"}
                     </td>
-                    <td className={`small ${tooLong ? "text-danger" : "muted"}`}>
+                    <td className={`small ${tooLong ? "text-danger" : "muted"}`} data-label="Лимит длительности">
                       {maxSec ? `${maxSec} с${tooLong ? " — видео длиннее" : ""}` : "—"}
                     </td>
                   </tr>
@@ -617,7 +617,7 @@ function ReviewStep({
       </div>
 
       <div className="table-wrap">
-        <table className="table">
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>Аккаунт</th>
@@ -628,7 +628,7 @@ function ReviewStep({
           <tbody>
             {rows.map((c) => (
               <tr key={c.account_id} className={c.ok ? "" : "row-disabled"}>
-                <td>
+                <td className="cell-main">
                   <div className="who">
                     <Avatar name={c.display_name || c.label} url={c.avatar_url} size={28} />
                     <div>
@@ -639,7 +639,7 @@ function ReviewStep({
                     </div>
                   </div>
                 </td>
-                <td className="small">
+                <td className="small" data-label="Проверка">
                   {c.ok ? <Badge tone="success">Готов</Badge> : <Badge tone="danger">Исключён</Badge>}
                   {c.problems.map((p) => (
                     <div key={p} className="text-danger">
@@ -652,7 +652,7 @@ function ReviewStep({
                     </div>
                   ))}
                 </td>
-                <td className="caption-cell">
+                <td className="caption-cell cell-wide" data-label="Подпись">
                   {editing === c.account_id ? (
                     <CaptionEditor
                       initial={overrides[c.account_id] ?? defaultCaption}

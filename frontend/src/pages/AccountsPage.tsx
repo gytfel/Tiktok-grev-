@@ -207,7 +207,7 @@ export default function AccountsPage() {
         <Empty title="Аккаунтов пока нет">Подключите аккаунт TikTok или импортируйте список из CSV.</Empty>
       ) : (
         <div className="table-wrap">
-          <table className="table">
+          <table className="table table-cards">
             <thead>
               <tr>
                 {canWrite && (
@@ -231,7 +231,7 @@ export default function AccountsPage() {
                       <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggle(a.id)} aria-label={`Выбрать ${a.label}`} />
                     </td>
                   )}
-                  <td>
+                  <td className="cell-main">
                     <div className="who">
                       <Avatar name={a.display_name || a.label} url={a.avatar_url} />
                       <div>
@@ -245,7 +245,7 @@ export default function AccountsPage() {
                       </div>
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Группы" className={a.groups.length ? "" : "hide-sm"}>
                     <div className="chips">
                       {a.groups.map((g) => (
                         <span className="chip" key={g.id}>
@@ -254,17 +254,17 @@ export default function AccountsPage() {
                       ))}
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Статус">
                     <Badge tone={ACCOUNT_STATUS[a.connection_status].tone}>{ACCOUNT_STATUS[a.connection_status].label}</Badge>
                     {a.last_error && <div className="small text-danger">{a.last_error}</div>}
                   </td>
-                  <td className="small">
+                  <td className="small" data-label="Видимость">
                     {a.creator_info?.privacy_level_options?.map((p) => PRIVACY_LABELS[p] ?? p).join(", ") || "—"}
                     {a.creator_info?.max_video_post_duration_sec && (
                       <div className="muted">до {a.creator_info.max_video_post_duration_sec} с</div>
                     )}
                   </td>
-                  <td className="small muted">{formatRelative(a.creator_info_checked_at)}</td>
+                  <td className="small muted" data-label="Проверен">{formatRelative(a.creator_info_checked_at)}</td>
                   {canWrite && (
                     <td className="col-actions">
                       <div className="row-actions">

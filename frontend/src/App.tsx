@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { BrowserRouter, Navigate, NavLink, Route, Routes, useNavigate } from "react-router-dom";
+import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, setUnauthorizedHandler } from "./api";
 import { Spinner, ToastProvider } from "./components/ui";
+import { AccountsIcon, BellIcon, CampaignsIcon, MoreIcon, VideoIcon } from "./components/icons";
 import type { Meta, User } from "./types";
 import LoginPage from "./pages/LoginPage";
 import AccountsPage from "./pages/AccountsPage";
@@ -11,6 +12,7 @@ import NewCampaignPage from "./pages/NewCampaignPage";
 import CampaignPage from "./pages/CampaignPage";
 import AuditPage from "./pages/AuditPage";
 import UsersPage from "./pages/UsersPage";
+import NotificationsPage from "./pages/NotificationsPage";
 
 interface Session {
   user: User;
@@ -27,30 +29,37 @@ export function useSession(): Session {
   return session;
 }
 
+const ROLE_NAMES = { admin: "админ", operator: "оператор", viewer: "просмотр" } as const;
+
 function Shell({ session }: { session: Session }) {
   const { user, meta } = session;
+  const { pathname } = useLocation();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const campaignsActive = pathname.startsWith("/campaigns") && pathname !== "/campaigns/new";
+
+  useEffect(() => setMoreOpen(false), [pathname]);
+
   return (
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden>
-            ▶
-          </span>
+          <img className="brand-mark" src="/icons/icon.svg" alt="" width={28} height={28} />
           <span>Очередь публикаций</span>
         </div>
         <nav>
-          <NavLink to="/campaigns" end>
+          <NavLink to="/campaigns" className={campaignsActive ? "active" : ""}>
             Кампании
           </NavLink>
           {session.canWrite && <NavLink to="/campaigns/new">Новая кампания</NavLink>}
           <NavLink to="/accounts">Аккаунты</NavLink>
           <NavLink to="/media">Видео</NavLink>
           <NavLink to="/audit">Журнал</NavLink>
+          <NavLink to="/notifications">Уведомления</NavLink>
           {user.role === "admin" && <NavLink to="/users">Пользователи</NavLink>}
         </nav>
         <div className="sidebar-foot">
           <div className="muted small">
-            {user.username} · {user.role === "admin" ? "админ" : user.role === "operator" ? "оператор" : "просмотр"}
+            {user.username} · {ROLE_NAMES[user.role]}
           </div>
           <button className="link-btn" onClick={session.logout}>
             Выйти
@@ -76,10 +85,52 @@ function Shell({ session }: { session: Session }) {
           <Route path="/accounts" element={<AccountsPage />} />
           <Route path="/media" element={<MediaPage />} />
           <Route path="/audit" element={<AuditPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="*" element={<Navigate to="/campaigns" replace />} />
         </Routes>
       </main>
+
+      {/* Нижние вкладки на телефоне. */}
+      <nav className="tabbar" aria-label="Разделы">
+        <NavLink to="/campaigns" className={campaignsActive ? "active" : ""}>
+          <CampaignsIcon />
+          Кампании
+        </NavLink>
+        <NavLink to="/accounts">
+          <AccountsIcon />
+          Аккаунты
+        </NavLink>
+        <NavLink to="/media">
+          <VideoIcon />
+          Видео
+        </NavLink>
+        <NavLink to="/notifications">
+          <BellIcon />
+          Уведомления
+        </NavLink>
+        <button className={moreOpen ? "active" : ""} onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen}>
+          <MoreIcon />
+          Ещё
+        </button>
+      </nav>
+      {moreOpen && (
+        <div className="sheet-backdrop" onClick={() => setMoreOpen(false)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()} role="menu">
+            {session.canWrite && <NavLink to="/campaigns/new">Новая кампания</NavLink>}
+            <NavLink to="/audit">Журнал действий</NavLink>
+            {user.role === "admin" && <NavLink to="/users">Пользователи панели</NavLink>}
+            <div className="sheet-foot">
+              <span className="muted small">
+                {user.username} · {ROLE_NAMES[user.role]}
+              </span>
+              <button className="btn btn-sm" onClick={session.logout}>
+                Выйти
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

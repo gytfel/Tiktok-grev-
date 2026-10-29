@@ -144,14 +144,9 @@ textarea {
   padding: 0 8px 18px;
 }
 .brand-mark {
-  display: grid;
-  place-items: center;
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 12px;
 }
 .sidebar nav {
   display: flex;
@@ -1128,33 +1123,33 @@ textarea {
   .shell {
     grid-template-columns: 1fr;
   }
+  /* На телефоне боковая панель превращается в верхнюю полосу, навигация — в нижние вкладки. */
   .sidebar {
-    position: static;
+    position: sticky;
+    top: 0;
+    z-index: 30;
     height: auto;
     flex-direction: row;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
     border-right: none;
     border-bottom: 1px solid var(--border);
   }
   .brand {
     padding: 0;
   }
-  .sidebar nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-    order: 3;
-    width: 100%;
-  }
+  .sidebar nav,
   .sidebar-foot {
-    margin: 0 0 0 auto;
-    flex-direction: row;
-    gap: 10px;
+    display: none;
   }
   .content {
-    padding: 16px 16px 60px;
+    padding: 16px 16px calc(84px + env(safe-area-inset-bottom));
+  }
+  .toasts {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+  .wizard-nav {
+    bottom: calc(60px + env(safe-area-inset-bottom));
   }
   .form-grid,
   .campaign-top {
@@ -1169,4 +1164,239 @@ textarea {
   .props {
     grid-template-columns: 1fr;
   }
+}
+
+/* --- нижние вкладки и меню «Ещё» (телефон) ------------------------------------------- */
+
+.tabbar {
+  display: none;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tabbar a,
+.tabbar button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 0 6px;
+  font: inherit;
+  font-size: 10.5px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.tabbar .active {
+  color: var(--accent);
+  font-weight: 600;
+}
+@media (max-width: 900px) {
+  .tabbar {
+    display: grid;
+  }
+}
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  background: rgb(10 12 16 / 35%);
+}
+.sheet {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 25%);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+.sheet a {
+  padding: 14px 12px;
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 15px;
+}
+.sheet a.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.sheet-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px 6px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+/* --- таблицы как карточки на узком экране -------------------------------------------- */
+
+@media (max-width: 700px) {
+  .table-wrap:has(> .table-cards) {
+    background: none;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+  .table-cards thead {
+    display: none;
+  }
+  .table-cards,
+  .table-cards tbody {
+    display: block;
+  }
+  .table-cards > tbody > tr {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+    padding: 14px;
+    margin-bottom: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .table-cards > tbody > tr > td {
+    display: block;
+    padding: 0;
+    border: none;
+    min-width: 0;
+    background: none !important;
+  }
+  .table-cards > tbody > tr > td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .table-cards .cell-main {
+    grid-column: 1 / -1;
+    order: -1;
+    font-size: 15px;
+  }
+  .table-cards .cell-wide,
+  .table-cards .col-actions {
+    grid-column: 1 / -1;
+  }
+  .table-cards .col-check {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: auto;
+  }
+  .table-cards .col-check ~ .cell-main {
+    padding-right: 32px;
+  }
+  .table-cards .col-actions {
+    width: auto;
+  }
+  .table-cards .col-actions .row-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  .table-cards .col-actions:empty {
+    display: none;
+  }
+  .table-cards .col-progress {
+    min-width: 0;
+  }
+  .table-cards .hide-sm {
+    display: none !important;
+  }
+  .table-cards tr.row-selected {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .table-cards tr.row-detail {
+    display: block;
+    margin-top: -6px;
+    background: var(--surface-2);
+  }
+  .table-cards tr.row-detail > td {
+    display: block;
+  }
+  .table-cards .table-cards > tbody > tr {
+    box-shadow: none;
+  }
+  .caption-cell {
+    max-width: none;
+  }
+  .campaign-media video {
+    max-height: 240px;
+  }
+  .page-head .actions {
+    width: 100%;
+  }
+  .page-head .actions .btn-primary {
+    flex: 1 1 100%;
+  }
+}
+
+/* --- страница уведомлений ------------------------------------------------------------ */
+
+.page.narrow {
+  max-width: 720px;
+}
+.steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kbd {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  font-size: 12px;
+}
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 14px;
+}
+.option {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 0;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.option:last-child {
+  border-bottom: none;
+}
+.option input {
+  flex: none;
+  margin-top: 3px;
+}
+.option > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.btn-block {
+  width: 100%;
+  padding: 12px 14px;
 }

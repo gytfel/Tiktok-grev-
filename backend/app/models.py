@@ -184,6 +184,8 @@ class Campaign(Base):
     start_at: Mapped[datetime]
     confirmed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     confirmed_at: Mapped[datetime]
+    # Когда отправлено уведомление о завершении; сбрасывается, если кампания снова запущена.
+    notified_at: Mapped[datetime | None]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
     media: Mapped[MediaAsset] = relationship(lazy="joined")
@@ -221,6 +223,8 @@ class PublicationJob(Base):
     last_error_message: Mapped[str | None] = mapped_column(Text)
     # True только когда известно, что публикация не состоялась и повтор не создаст дубликат.
     retryable: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Когда о проблеме с заданием сообщили уведомлением; сбрасывается при повторе.
+    attention_notified_at: Mapped[datetime | None]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
 
@@ -262,3 +266,31 @@ class AuditEvent(Base):
     action: Mapped[str] = mapped_column(String(64))
     details: Mapped[dict[str, Any]] = mapped_column(default=dict)
     created_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
+
+
+class AppSecret(Base):
+    """Секреты, которые приложение создаёт само (например, ключи VAPID). Хранятся зашифрованными."""
+
+    __tablename__ = "app_secrets"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value_enc: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
+class PushSubscription(Base):
+    """Подписка браузера или установленного PWA на Web Push."""
+
+    __tablename__ = "push_subscriptions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    endpoint: Mapped[str] = mapped_column(String(1024), unique=True)
+    p256dh: Mapped[str] = mapped_column(String(255))
+    auth: Mapped[str] = mapped_column(String(255))
+    user_agent: Mapped[str] = mapped_column(String(255), default="")
+    # Какие события присылать: {"campaign_finished": bool, "attention": bool}.
+    preferences: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    last_success_at: Mapped[datetime | None]
+    last_error: Mapped[str | None] = mapped_column(Text)

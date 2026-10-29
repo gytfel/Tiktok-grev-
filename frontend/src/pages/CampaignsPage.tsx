@@ -46,7 +46,7 @@ export default function CampaignsPage() {
         <Empty title="Кампаний пока нет">Создайте кампанию: выберите видео, аккаунты и подтвердите публикацию.</Empty>
       ) : (
         <div className="table-wrap">
-          <table className="table">
+          <table className="table table-cards">
             <thead>
               <tr>
                 <th>Кампания</th>
@@ -62,24 +62,24 @@ export default function CampaignsPage() {
                 const problems = (c.counts.failed ?? 0) + (c.counts.needs_reauth ?? 0) + (c.counts.needs_review ?? 0);
                 return (
                   <tr key={c.id}>
-                    <td>
+                    <td className="cell-main">
                       <Link className="strong" to={`/campaigns/${c.id}`}>
                         {c.title}
                       </Link>
                       <div className="muted small">{c.media.original_filename}</div>
                     </td>
-                    <td>
+                    <td data-label="Статус">
                       <Badge tone={CAMPAIGN_STATUS[c.status].tone}>{CAMPAIGN_STATUS[c.status].label}</Badge>
                     </td>
-                    <td className="col-progress">
+                    <td className="col-progress cell-wide" data-label="Прогресс">
                       <StatusBar counts={c.counts} total={c.total} />
                       <div className="small muted">
                         {published} из {c.total} опубликовано
                         {problems > 0 && <span className="text-danger"> · {problems} требуют внимания</span>}
                       </div>
                     </td>
-                    <td className="small">{PRIVACY_LABELS[c.settings.privacy_level]}</td>
-                    <td className="small muted">
+                    <td className="small" data-label="Видимость">{PRIVACY_LABELS[c.settings.privacy_level]}</td>
+                    <td className="small muted" data-label="Подтверждена">
                       {formatDateTime(c.confirmed_at)}
                       <div>{c.confirmed_by ?? "—"}</div>
                     </td>

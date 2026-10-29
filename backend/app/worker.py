@@ -9,7 +9,7 @@ from functools import lru_cache
 
 from celery import Celery
 
-from app import publishing
+from app import notifications, publishing, push
 from app.accounts_service import check_account
 from app.config import get_settings
 from app.db import get_sessionmaker
@@ -30,6 +30,7 @@ celery_app.conf.update(
         "dispatch-due-jobs": {"task": "app.worker.dispatch_task", "schedule": 5.0},
         "poll-processing-jobs": {"task": "app.worker.poll_dispatch_task", "schedule": 5.0},
         "recover-stale-jobs": {"task": "app.worker.recover_task", "schedule": 60.0},
+        "notify": {"task": "app.worker.notify_task", "schedule": float(settings.notify_interval_s)},
     },
 )
 
@@ -81,3 +82,13 @@ def check_account_task(account_id: int) -> None:
         account = db.get(Account, account_id)
         if account is not None:
             check_account(db, account, tiktok(), utcnow())
+
+
+@celery_app.task
+def notify_task() -> int:
+    with get_sessionmaker()() as db:
+        messages = notifications.collect(db, utcnow())
+        sent = 0
+        for event, message in messages:
+            sent += push.send(db, message, push.subscriptions_for(db, event))
+    return sent

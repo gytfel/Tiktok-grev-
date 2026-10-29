@@ -157,7 +157,7 @@ export default function CampaignPage() {
       </div>
 
       <div className="table-wrap">
-        <table className="table">
+        <table className="table table-cards">
           <thead>
             <tr>
               <th>Аккаунт</th>
@@ -171,23 +171,23 @@ export default function CampaignPage() {
             {jobs.map((job) => (
               <Fragment key={job.id}>
                 <tr>
-                  <td>
+                  <td className="cell-main">
                     <div className="strong">{job.account_display_name || job.account_label}</div>
                     <div className="muted small">
                       {job.account_username ? `@${job.account_username}` : job.account_label}
                       {job.caption_overridden && " · своя подпись"}
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Статус">
                     <Badge tone={JOB_STATUS[job.status].tone}>{JOB_STATUS[job.status].label}</Badge>
                     {job.status === "queued" && job.last_error_code && (
                       <div className="small muted">повтор в {formatDateTime(job.scheduled_at)}</div>
                     )}
                   </td>
-                  <td className="small">
+                  <td className="small cell-wide" data-label="Результат">
                     <JobResult job={job} />
                   </td>
-                  <td className="small">
+                  <td className="small" data-label="Попытки">
                     <button className="link-btn" onClick={() => setExpanded(expanded === job.id ? null : job.id)}>
                       {job.attempt_total} {expanded === job.id ? "▴" : "▾"}
                     </button>
@@ -200,7 +200,7 @@ export default function CampaignPage() {
                 </tr>
                 {expanded === job.id && (
                   <tr className="row-detail">
-                    <td colSpan={canWrite ? 5 : 4}>
+                    <td colSpan={canWrite ? 5 : 4} className="cell-wide">
                       <Attempts jobId={job.id} />
                     </td>
                   </tr>
@@ -292,7 +292,7 @@ function Attempts({ jobId }: { jobId: number }) {
   if (!items) return <Spinner />;
   if (!items.length) return <span className="muted small">Попыток ещё не было.</span>;
   return (
-    <table className="table table-inner">
+    <table className="table table-inner table-cards">
       <thead>
         <tr>
           <th>#</th>
@@ -306,14 +306,14 @@ function Attempts({ jobId }: { jobId: number }) {
       <tbody>
         {items.map((a) => (
           <tr key={a.id}>
-            <td>{a.attempt_number}</td>
-            <td>{formatDateTime(a.started_at)}</td>
-            <td>{formatDateTime(a.finished_at)}</td>
-            <td>{formatBytes(a.uploaded_bytes)}</td>
-            <td>
+            <td className="cell-main">#{a.attempt_number}</td>
+            <td data-label="Начало">{formatDateTime(a.started_at)}</td>
+            <td data-label="Конец">{formatDateTime(a.finished_at)}</td>
+            <td data-label="Загружено">{formatBytes(a.uploaded_bytes)}</td>
+            <td data-label="Итог">
               <code>{a.result_code ?? "—"}</code>
             </td>
-            <td className="small muted break">
+            <td className="small muted break cell-wide" data-label="Детали">
               {a.publish_id && <div>publish_id: {a.publish_id}</div>}
               {a.error_details}
             </td>

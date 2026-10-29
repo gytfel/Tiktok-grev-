@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     admin_username: str = ""
     admin_password: str = ""
 
+    # Контакт для push-сервисов (mailto: или https:). По умолчанию — PUBLIC_BASE_URL, если он на HTTPS.
+    vapid_subject: str = ""
+    notify_interval_s: int = 20
+
     @property
     def oauth_redirect_uri(self) -> str:
         return self.public_base_url.rstrip("/") + "/api/oauth/tiktok/callback"
