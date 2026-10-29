@@ -1,0 +1,64 @@
+x-app: &app
+  build: .
+  image: tiktok-publishing-queue:local
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql+psycopg://tiktok:tiktok@postgres:5432/tiktok
+    REDIS_URL: redis://redis:6379/0
+  volumes:
+    - media:/data/media
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: tiktok
+      POSTGRES_PASSWORD: tiktok
+      POSTGRES_DB: tiktok
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tiktok"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  # Панель и API. При старте применяет миграции.
+  app:
+    <<: *app
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 5s
+      retries: 20
+
+  # Загрузка видео в TikTok. Параллельность — UPLOAD_CONCURRENCY.
+  worker-uploads:
+    <<: *app
+    command: sh -c "exec celery -A app.worker.celery_app worker -Q uploads -c $${UPLOAD_CONCURRENCY:-3} -n uploads@%h"
+    depends_on:
+      app:
+        condition: service_healthy
+
+  # Планировщик: выдача заданий, опрос статусов, восстановление после сбоев.
+  worker:
+    <<: *app
+    command: celery -A app.worker.celery_app worker -Q default -c 2 -B -n default@%h -s /tmp/celerybeat-schedule
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  media:

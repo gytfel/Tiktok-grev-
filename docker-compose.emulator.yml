@@ -1,0 +1,30 @@
+# Локальная проверка без одобренного приложения TikTok:
+#   docker compose -f docker-compose.yml -f docker-compose.emulator.yml up --build
+x-emulator-env: &emulator-env
+  TIKTOK_EMULATOR: "true"
+  TIKTOK_CLIENT_KEY: test-client-key
+  TIKTOK_CLIENT_SECRET: test-client-secret
+  # Страница входа открывается в браузере, API вызывается из контейнеров.
+  TIKTOK_AUTH_URL: http://localhost:9000/v2/auth/authorize/
+  TIKTOK_API_BASE: http://tiktok-emulator:9000
+  PUBLIC_BASE_URL: http://localhost:8000
+
+services:
+  tiktok-emulator:
+    image: tiktok-publishing-queue:local
+    command: uvicorn fake_tiktok.server:app --host 0.0.0.0 --port 9000
+    environment:
+      EMULATOR_API_BASE: http://tiktok-emulator:9000
+      # EMULATOR_UNAUDITED: "1"   # поведение приложения без аудита TikTok
+    ports:
+      - "9000:9000"
+    depends_on:
+      app:
+        condition: service_healthy
+
+  app:
+    environment: *emulator-env
+  worker-uploads:
+    environment: *emulator-env
+  worker:
+    environment: *emulator-env
