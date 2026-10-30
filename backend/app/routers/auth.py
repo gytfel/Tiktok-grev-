@@ -1,7 +1,8 @@
 import time
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -32,6 +33,20 @@ class CodeIn(BaseModel):
 class PasswordChangeIn(BaseModel):
     current_password: str
     new_password: str = Field(min_length=10, max_length=200)
+
+
+class PreferencesIn(BaseModel):
+    timezone: str | None = Field(default=None, max_length=64)
+
+    @field_validator("timezone")
+    @classmethod
+    def _known_zone(cls, value: str | None) -> str | None:
+        if value:
+            try:
+                ZoneInfo(value)
+            except (ZoneInfoNotFoundError, ValueError):
+                raise ValueError("Неизвестный часовой пояс") from None
+        return value or None
 
 
 class DisableTwoFactorIn(BaseModel):
@@ -95,6 +110,15 @@ def logout(request: Request) -> dict:
 
 @router.get("/auth/me", response_model=UserOut)
 def me(user: User = Depends(session_user)) -> User:
+    return user
+
+
+@router.patch("/auth/preferences", response_model=UserOut)
+def update_preferences(
+    data: PreferencesIn, db: Session = Depends(get_db), user: User = Depends(session_user)
+) -> User:
+    user.timezone = data.timezone
+    db.commit()
     return user
 
 

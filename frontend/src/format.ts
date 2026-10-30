@@ -1,3 +1,4 @@
+import { getZone } from "./time";
 import type { AccountStatus, CampaignStatus, CommentStatus, JobStatus, PrivacyLevel, TemplateKind } from "./types";
 
 export const PRIVACY_LABELS: Record<PrivacyLevel, string> = {
@@ -102,12 +103,6 @@ export const COMMENT_STATUS: Record<CommentStatus, { label: string; tone: Tone }
   archived: { label: "В архиве", tone: "muted" },
 };
 
-/** Значение для <input type="datetime-local"> в местном времени. */
-export function toLocalInput(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 /** Копирует текст; без HTTPS clipboard API недоступен, поэтому есть запасной способ. */
 export async function copyText(text: string): Promise<void> {
   if (navigator.clipboard && window.isSecureContext) {
@@ -124,16 +119,24 @@ export async function copyText(text: string): Promise<void> {
   area.remove();
 }
 
-const dateTime = new Intl.DateTimeFormat("ru-RU", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+const dateTimeFormatters = new Map<string, Intl.DateTimeFormat>();
 
-export function formatDateTime(value: string | null | undefined): string {
-  return value ? dateTime.format(new Date(value)) : "—";
+export function formatDateTime(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  const zone = getZone();
+  let f = dateTimeFormatters.get(zone);
+  if (!f) {
+    f = new Intl.DateTimeFormat("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: zone,
+    });
+    dateTimeFormatters.set(zone, f);
+  }
+  return f.format(typeof value === "string" ? new Date(value) : value);
 }
 
 export function formatRelative(value: string | null | undefined): string {

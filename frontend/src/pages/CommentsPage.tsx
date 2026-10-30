@@ -4,7 +4,8 @@ import { api, ApiError } from "../api";
 import { useSession } from "../App";
 import { AiVariantsModal, TemplatePicker } from "../components/assist";
 import { Badge, Empty, Modal, Spinner, useToast } from "../components/ui";
-import { COMMENT_STATUS, copyText, formatDateTime, toLocalInput } from "../format";
+import { COMMENT_STATUS, copyText, formatDateTime } from "../format";
+import { fromInput, toInput, tomorrowAt } from "../time";
 import type { CommentDraft, CommentStatus } from "../types";
 
 const TABS: CommentStatus[] = ["draft", "sent", "archived"];
@@ -176,7 +177,7 @@ function CommentEditor({
         due_at: due.toISOString(),
         comment_draft_id: saved.id,
       });
-      toast(`Напомню ${due.toLocaleString("ru-RU")}`, "success");
+      toast(`Напомню ${formatDateTime(due)}`, "success");
       setRemindAt("");
     } catch (e) {
       toast((e as ApiError).message, "danger");
@@ -190,9 +191,7 @@ function CommentEditor({
     onClose();
   }
 
-  const tomorrow10 = new Date();
-  tomorrow10.setDate(tomorrow10.getDate() + 1);
-  tomorrow10.setHours(10, 0, 0, 0);
+  const tomorrow10 = tomorrowAt(10);
 
   return (
     <Modal title={draft ? "Ответ на комментарий" : "Новый ответ"} onClose={onClose} wide>
@@ -259,8 +258,8 @@ function CommentEditor({
           <button className="btn btn-sm" onClick={() => remind(tomorrow10)}>
             Завтра в 10:00
           </button>
-          <input type="datetime-local" value={remindAt} min={toLocalInput(new Date())} onChange={(e) => setRemindAt(e.target.value)} />
-          <button className="btn btn-sm" disabled={!remindAt} onClick={() => remind(new Date(remindAt))}>
+          <input type="datetime-local" value={remindAt} min={toInput(new Date())} onChange={(e) => setRemindAt(e.target.value)} />
+          <button className="btn btn-sm" disabled={!remindAt} onClick={() => remind(fromInput(remindAt))}>
             Напомнить
           </button>
         </div>

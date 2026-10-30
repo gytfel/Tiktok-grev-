@@ -23,6 +23,7 @@ class UserOut(ORM):
     username: str
     role: str
     totp_enabled: bool = False
+    timezone: str | None = None
 
 
 # --- аккаунты -----------------------------------------------------------------------------

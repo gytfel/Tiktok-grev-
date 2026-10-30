@@ -12,7 +12,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import get_settings
 from app.db import get_sessionmaker
 from app.models import Role, User
-from app.routers import accounts, assistant, auth, campaigns, comments, media, oauth, push
+from app.routers import accounts, assistant, auth, calendar, campaigns, comments, media, oauth, push
 from app.security import hash_password
 
 log = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ def create_app() -> FastAPI:
         same_site="lax",
         https_only=settings.session_https_only,
     )
-    for module in (auth, accounts, oauth, media, campaigns, push, assistant, comments):
+    for module in (auth, accounts, oauth, media, campaigns, push, assistant, comments, calendar):
         app.include_router(module.router)
 
     @app.get("/api/health")

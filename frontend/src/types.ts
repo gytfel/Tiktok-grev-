@@ -5,6 +5,7 @@ export interface User {
   username: string;
   role: Role;
   totp_enabled: boolean;
+  timezone: string | null;
 }
 
 export interface Meta {

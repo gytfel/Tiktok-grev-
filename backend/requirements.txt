@@ -13,3 +13,4 @@ python-multipart==0.0.32
 pywebpush==2.5.0
 pyotp==2.10.0
 qrcode==8.2
+tzdata==2026.6

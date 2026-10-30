@@ -98,6 +98,8 @@ class User(Base):
     totp_locked_until: Mapped[datetime | None]
     # Увеличивается при смене пароля или настроек 2FA — старые сессии перестают действовать.
     session_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Часовой пояс для дат в панели (IANA, например Europe/Moscow). Пусто — пояс браузера.
+    timezone: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 

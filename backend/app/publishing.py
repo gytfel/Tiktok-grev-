@@ -255,6 +255,52 @@ def refresh_campaign_status(db: Session, campaign_id: int) -> None:
     campaign.status = CampaignStatus.RUNNING if pending else CampaignStatus.COMPLETED
 
 
+def planned_campaign_ids(db: Session, campaigns: list[Campaign], now: datetime) -> set[int]:
+    """Кампании, которые ещё не начались: время старта впереди и ни одно задание не запускалось."""
+    candidates = [c.id for c in campaigns if c.status == CampaignStatus.RUNNING and c.start_at > now]
+    if not candidates:
+        return set()
+    started = set(
+        db.scalars(
+            select(PublicationJob.campaign_id)
+            .where(PublicationJob.campaign_id.in_(candidates), PublicationJob.status != JobStatus.QUEUED)
+            .distinct()
+        )
+    )
+    started |= set(
+        db.scalars(
+            select(PublicationJob.campaign_id)
+            .join(PublicationAttempt, PublicationAttempt.job_id == PublicationJob.id)
+            .where(PublicationJob.campaign_id.in_(candidates))
+            .distinct()
+        )
+    )
+    return set(candidates) - started
+
+
+def reschedule_campaign(
+    db: Session, campaign: Campaign, start_at: datetime, user: User, now: datetime
+) -> None:
+    """Переносит ещё не начавшуюся кампанию. Время в прошлом означает «запустить сейчас»."""
+    if campaign.id not in planned_campaign_ids(db, [campaign], now):
+        raise CampaignError("Перенести можно только кампанию, которая ещё не началась")
+    previous = campaign.start_at
+    campaign.start_at = max(start_at, now)
+    db.execute(
+        update(PublicationJob)
+        .where(PublicationJob.campaign_id == campaign.id)
+        .values(scheduled_at=campaign.start_at, dispatched_at=None)
+    )
+    audit.record(
+        db,
+        user,
+        "campaign.rescheduled",
+        "campaign",
+        campaign.id,
+        {"from": previous.isoformat(), "to": campaign.start_at.isoformat()},
+    )
+
+
 def cancel_campaign(db: Session, campaign: Campaign, user: User) -> int:
     """Отменяет задания, которые ещё ждут в очереди. Начатые публикации доводятся до конца."""
     cancelled = 0

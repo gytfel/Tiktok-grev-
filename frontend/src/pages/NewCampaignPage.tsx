@@ -5,12 +5,14 @@ import { useSession } from "../App";
 import { Avatar, Badge, Empty, Spinner, useToast } from "../components/ui";
 import { AiVariantsModal, TemplatePicker } from "../components/assist";
 import { VideoUploader } from "../components/VideoUploader";
+import { fromInput, getZone } from "../time";
 import {
   ACCOUNT_STATUS,
   PRIVACY_LABELS,
   PRIVACY_ORDER,
   captionLength,
   formatBytes,
+  formatDateTime,
   formatDuration,
   formatRelative,
   plural,
@@ -54,8 +56,8 @@ export default function NewCampaignPage() {
   const [brandContent, setBrandContent] = useState(false);
   const [isAigc, setIsAigc] = useState(false);
   const [coverSec, setCoverSec] = useState("");
-  const [startMode, setStartMode] = useState<"now" | "later">("now");
-  const [startAt, setStartAt] = useState("");
+  const [startMode, setStartMode] = useState<"now" | "later">(params.get("start") ? "later" : "now");
+  const [startAt, setStartAt] = useState(params.get("start") ?? "");
   const [allowDuplicates, setAllowDuplicates] = useState(false);
   const [overrides, setOverrides] = useState<Record<number, string>>({});
   const [helper, setHelper] = useState<null | "caption" | "hashtags" | "ai-caption" | "ai-hashtags">(null);
@@ -108,7 +110,7 @@ export default function NewCampaignPage() {
         is_aigc: isAigc,
         cover_timestamp_ms: coverSec.trim() ? Math.round(Number(coverSec) * 1000) : null,
       },
-      start_at: startMode === "later" && startAt ? new Date(startAt).toISOString() : null,
+      start_at: startMode === "later" && startAt ? fromInput(startAt).toISOString() : null,
       allow_duplicates: allowDuplicates,
     };
   }, [
@@ -143,7 +145,7 @@ export default function NewCampaignPage() {
       errors.push("Брендированный контент нельзя публиковать с видимостью «Только я»");
     if (coverSec.trim() && (Number.isNaN(Number(coverSec)) || Number(coverSec) < 0))
       errors.push("Кадр обложки — число секунд");
-    if (startMode === "later" && (!startAt || new Date(startAt).getTime() < Date.now()))
+    if (startMode === "later" && (!startAt || fromInput(startAt).getTime() < Date.now()))
       errors.push("Время старта должно быть в будущем");
     return errors;
   }, [title, privacy, caption, disclose, brandOrganic, brandContent, coverSec, startMode, startAt]);
@@ -367,7 +369,10 @@ export default function NewCampaignPage() {
                 </label>
               </div>
               {startMode === "later" && (
-                <input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
+                <>
+                  <input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
+                  <small className="muted">Часовой пояс: {getZone()} (меняется в календаре)</small>
+                </>
               )}
             </fieldset>
             <label className="field switch">
@@ -633,7 +638,7 @@ function ReviewStep({
         <div className="tile">
           <span className="muted small">Видимость · старт</span>
           <strong>{privacy ? PRIVACY_LABELS[privacy] : "—"}</strong>
-          <span className="muted small">{startAt ? new Date(startAt).toLocaleString("ru-RU") : "сразу после подтверждения"}</span>
+          <span className="muted small">{startAt ? formatDateTime(startAt) : "сразу после подтверждения"}</span>
         </div>
       </div>
 

@@ -49,6 +49,14 @@ export const BellIcon = () => (
   </Icon>
 );
 
+export const CalendarIcon = () => (
+  <Icon>
+    <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+    <path d="M3.5 10h17" />
+    <path d="M8 3v4M16 3v4" />
+  </Icon>
+);
+
 export const MoreIcon = () => (
   <Icon>
     <circle cx="5" cy="12" r="1.3" />

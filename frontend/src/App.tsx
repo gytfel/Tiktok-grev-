@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, setUnauthorizedHandler } from "./api";
 import { Spinner, ToastProvider } from "./components/ui";
-import { AccountsIcon, BellIcon, CampaignsIcon, MoreIcon, VideoIcon } from "./components/icons";
+import { AccountsIcon, CalendarIcon, CampaignsIcon, MoreIcon, VideoIcon } from "./components/icons";
 import type { Meta, User } from "./types";
 import LoginPage from "./pages/LoginPage";
 import AccountsPage from "./pages/AccountsPage";
@@ -17,6 +17,8 @@ import TemplatesPage from "./pages/TemplatesPage";
 import CommentsPage from "./pages/CommentsPage";
 import RemindersPage from "./pages/RemindersPage";
 import SecurityPage from "./pages/SecurityPage";
+import CalendarPage from "./pages/CalendarPage";
+import { setZone } from "./time";
 
 interface Session {
   user: User;
@@ -56,6 +58,7 @@ function Shell({ session }: { session: Session }) {
             Кампании
           </NavLink>
           {session.canWrite && <NavLink to="/campaigns/new">Новая кампания</NavLink>}
+          <NavLink to="/calendar">Календарь</NavLink>
           <NavLink to="/accounts">Аккаунты</NavLink>
           <NavLink to="/media">Видео</NavLink>
           <NavLink to="/templates">Шаблоны</NavLink>
@@ -95,6 +98,7 @@ function Shell({ session }: { session: Session }) {
           <Route path="/media" element={<MediaPage />} />
           <Route path="/audit" element={<AuditPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/templates" element={<TemplatesPage />} />
           <Route path="/comments" element={<CommentsPage />} />
           <Route path="/reminders" element={<RemindersPage />} />
@@ -118,9 +122,9 @@ function Shell({ session }: { session: Session }) {
           <VideoIcon />
           Видео
         </NavLink>
-        <NavLink to="/notifications">
-          <BellIcon />
-          Уведомления
+        <NavLink to="/calendar">
+          <CalendarIcon />
+          Календарь
         </NavLink>
         <button className={moreOpen ? "active" : ""} onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen}>
           <MoreIcon />
@@ -131,6 +135,7 @@ function Shell({ session }: { session: Session }) {
         <div className="sheet-backdrop" onClick={() => setMoreOpen(false)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()} role="menu">
             {session.canWrite && <NavLink to="/campaigns/new">Новая кампания</NavLink>}
+            <NavLink to="/notifications">Уведомления</NavLink>
             <NavLink to="/comments">Ответы на комментарии</NavLink>
             <NavLink to="/reminders">Напоминания</NavLink>
             <NavLink to="/templates">Шаблоны</NavLink>
@@ -170,6 +175,7 @@ function Root() {
   const load = useCallback(async () => {
     try {
       const user = await api.get<User>("/api/auth/me");
+      setZone(user.timezone);
       const meta = await api.get<Meta>("/api/meta");
       setState({ user, meta });
     } catch {

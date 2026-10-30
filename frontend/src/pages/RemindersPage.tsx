@@ -4,7 +4,8 @@ import { Link } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useSession } from "../App";
 import { Badge, Empty, Spinner, useToast } from "../components/ui";
-import { formatDateTime, toLocalInput } from "../format";
+import { formatDateTime } from "../format";
+import { fromInput, toInput } from "../time";
 import type { Reminder } from "../types";
 
 export default function RemindersPage() {
@@ -14,7 +15,7 @@ export default function RemindersPage() {
   const [items, setItems] = useState<Reminder[] | null>(null);
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
-  const [due, setDue] = useState(() => toLocalInput(new Date(Date.now() + 3600_000)));
+  const [due, setDue] = useState(() => toInput(new Date(Date.now() + 3600_000)));
 
   const load = useCallback(() => api.get<Reminder[]>(`/api/reminders?state=${state}`).then(setItems), [state]);
 
@@ -25,7 +26,7 @@ export default function RemindersPage() {
   async function create(e: FormEvent) {
     e.preventDefault();
     try {
-      await api.post("/api/reminders", { title, note, due_at: new Date(due).toISOString() });
+      await api.post("/api/reminders", { title, note, due_at: fromInput(due).toISOString() });
       setTitle("");
       setNote("");
       await load();
