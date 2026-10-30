@@ -51,8 +51,8 @@ def subscribe(
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ) -> dict:
-    if not data.endpoint.startswith("https://"):
-        raise HTTPException(422, "Некорректный адрес подписки")
+    if not push.is_push_service_endpoint(data.endpoint):
+        raise HTTPException(422, "Адрес подписки не относится к известному сервису уведомлений")
     sub = db.execute(
         select(PushSubscription).where(PushSubscription.endpoint == data.endpoint)
     ).scalar_one_or_none()

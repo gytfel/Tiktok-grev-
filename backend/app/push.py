@@ -7,6 +7,7 @@
 import base64
 import json
 from dataclasses import asdict, dataclass
+from urllib.parse import urlsplit
 
 import requests
 from cryptography.hazmat.primitives import serialization
@@ -24,6 +25,15 @@ from app.security import decrypt_secret, encrypt_secret
 VAPID_KEY = "vapid_private_pem"
 EVENTS = ("campaign_finished", "attention")
 TTL_S = 24 * 3600
+
+# Адрес подписки присылает браузер, поэтому ему нельзя доверять: принимаются только push-сервисы
+# браузеров, иначе сервер можно заставить отправлять запросы на произвольные адреса.
+PUSH_SERVICE_HOSTS = ("fcm.googleapis.com", "android.googleapis.com")  # Chrome, Android, Opera, Samsung
+PUSH_SERVICE_DOMAINS = (
+    ".push.apple.com",  # Safari, iPhone
+    ".push.services.mozilla.com",  # Firefox
+    ".notify.windows.com",  # Edge
+)
 
 
 @dataclass
@@ -67,6 +77,26 @@ def public_key(vapid: Vapid02) -> str:
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
 
 
+def is_push_service_endpoint(endpoint: str) -> bool:
+    try:
+        parts = urlsplit(endpoint)
+        port = parts.port
+    except ValueError:
+        return False
+    host = (parts.hostname or "").lower()
+    if parts.scheme != "https" or parts.username or parts.password or port not in (None, 443):
+        return False
+    return host in PUSH_SERVICE_HOSTS or any(host.endswith(d) for d in PUSH_SERVICE_DOMAINS)
+
+
+class _NoRedirectSession(requests.Session):
+    """Push-сервисы не перенаправляют запросы, а переход по редиректу мог бы увести запрос куда угодно."""
+
+    def request(self, *args, **kwargs):
+        kwargs["allow_redirects"] = False
+        return super().request(*args, **kwargs)
+
+
 def subject() -> str:
     settings = get_settings()
     if settings.vapid_subject:
@@ -87,8 +117,12 @@ def send(
         return 0
     vapid = get_vapid(db)
     payload = json.dumps(asdict(message), ensure_ascii=False)
+    http = session or _NoRedirectSession()
     sent = 0
     for sub in subscriptions:
+        if not is_push_service_endpoint(sub.endpoint):
+            db.delete(sub)
+            continue
         try:
             webpush(
                 {"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
@@ -98,7 +132,7 @@ def send(
                 vapid_claims={"sub": subject()},
                 ttl=TTL_S,
                 timeout=10,
-                requests_session=session,
+                requests_session=http,
             )
         except WebPushException as exc:
             status = exc.response.status_code if exc.response is not None else None
@@ -112,6 +146,8 @@ def send(
             sub.last_success_at = utcnow()
             sub.last_error = None
             sent += 1
+    if session is None:
+        http.close()
     db.commit()
     return sent
 

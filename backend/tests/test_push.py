@@ -21,7 +21,7 @@ def b64url(data: bytes) -> str:
 class Browser:
     """Ключи подписки, как их создаёт браузер в pushManager.subscribe()."""
 
-    def __init__(self, endpoint="https://push.example.com/send/abc"):
+    def __init__(self, endpoint="https://fcm.googleapis.com/fcm/send/abc"):
         self.key = ec.generate_private_key(ec.SECP256R1())
         self.auth = os.urandom(16)
         self.endpoint = endpoint
@@ -95,7 +95,7 @@ def test_message_is_encrypted_for_the_device(db, admin):
 
 
 def test_expired_subscription_is_removed(db, admin):
-    gone = add_subscription(db, admin, Browser("https://push.example.com/gone"))
+    gone = add_subscription(db, admin, Browser("https://web.push.apple.com/gone"))
     assert push.send(db, push.PushMessage("a", "b"), [gone], session=PushService(410)) == 0
     assert db.scalar(select(PushSubscription)) is None
 
@@ -108,10 +108,14 @@ def test_temporary_failure_keeps_subscription(db, admin):
 
 
 def test_preferences_filter_events(db, admin):
-    add_subscription(db, admin, Browser("https://push.example.com/all"))
-    add_subscription(db, admin, Browser("https://push.example.com/quiet"), attention=False)
+    add_subscription(db, admin, Browser("https://fcm.googleapis.com/fcm/send/all"))
+    add_subscription(
+        db, admin, Browser("https://updates.push.services.mozilla.com/wpush/v2/quiet"), attention=False
+    )
     assert len(push.subscriptions_for(db, "campaign_finished")) == 2
-    assert [s.endpoint for s in push.subscriptions_for(db, "attention")] == ["https://push.example.com/all"]
+    assert [s.endpoint for s in push.subscriptions_for(db, "attention")] == [
+        "https://fcm.googleapis.com/fcm/send/all"
+    ]
 
 
 # --- какие уведомления отправляются ------------------------------------------------------
@@ -200,9 +204,63 @@ def test_subscription_api(admin_client, monkeypatch):
     assert admin_client.post("/api/push/test", json={"endpoint": browser.endpoint}).status_code == 404
 
 
-def test_subscription_requires_https_endpoint(admin_client):
-    payload = Browser("http://push.example.com/x").subscription_json()
-    assert admin_client.post("/api/push/subscriptions", json=payload).status_code == 422
+def test_only_browser_push_services_are_accepted(admin_client):
+    for endpoint in (
+        "https://fcm.googleapis.com/fcm/send/x",
+        "https://web.push.apple.com/QK2ab",
+        "https://updates.push.services.mozilla.com/wpush/v2/x",
+        "https://wns2-par02p.notify.windows.com/w/?token=x",
+    ):
+        payload = Browser(endpoint).subscription_json()
+        assert admin_client.post("/api/push/subscriptions", json=payload).status_code == 200, endpoint
+    for endpoint in (
+        "http://fcm.googleapis.com/fcm/send/x",
+        "https://attacker.example/x",
+        "https://169.254.169.254/latest/meta-data/",
+        "https://localhost/x",
+        "https://fcm.googleapis.com.attacker.example/x",
+        "https://evilpush.apple.com.attacker.example/x",
+        "https://user@fcm.googleapis.com/x",
+        "https://fcm.googleapis.com:8443/x",
+        "https://fcm.googleapis.com:99999/x",
+    ):
+        payload = Browser(endpoint).subscription_json()
+        assert admin_client.post("/api/push/subscriptions", json=payload).status_code == 422, endpoint
+
+
+def test_unknown_endpoint_already_in_db_is_dropped_without_request(db, admin):
+    sub = add_subscription(db, admin, Browser("https://attacker.example/x"))
+    service = PushService()
+    assert push.send(db, push.PushMessage("a", "b"), [sub], session=service) == 0
+    assert service.requests == []
+    assert db.scalar(select(PushSubscription)) is None
+
+
+def test_redirects_from_push_service_are_not_followed(db, admin):
+    class RedirectAdapter(requests.adapters.HTTPAdapter):
+        def __init__(self):
+            super().__init__()
+            self.urls = []
+
+        def send(self, request, **kwargs):
+            self.urls.append(request.url)
+            response = requests.Response()
+            response.status_code = 302
+            response.headers["Location"] = "http://10.0.0.5:8080/admin"
+            response.url = request.url
+            response.request = request
+            response._content = b""
+            return response
+
+    adapter = RedirectAdapter()
+    session = push._NoRedirectSession()
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    sub = add_subscription(db, admin, Browser())
+
+    assert push.send(db, push.PushMessage("a", "b"), [sub], session=session) == 0
+    assert adapter.urls == [Browser().endpoint]
+    assert db.get(PushSubscription, sub.id).last_error
 
 
 def test_push_requires_login(client):
