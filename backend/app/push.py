@@ -23,7 +23,7 @@ from app.models import AppSecret, PushSubscription, utcnow
 from app.security import decrypt_secret, encrypt_secret
 
 VAPID_KEY = "vapid_private_pem"
-EVENTS = ("campaign_finished", "attention")
+EVENTS = ("campaign_finished", "attention", "reminder")
 TTL_S = 24 * 3600
 
 # Адрес подписки присылает браузер, поэтому ему нельзя доверять: принимаются только push-сервисы

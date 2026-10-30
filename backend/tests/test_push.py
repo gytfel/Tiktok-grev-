@@ -189,7 +189,10 @@ def test_subscription_api(admin_client, monkeypatch):
     payload = {**browser.subscription_json(), "preferences": {"campaign_finished": True, "attention": False}}
     assert admin_client.post("/api/push/subscriptions", json=payload).json()["subscribed"]
     lookup = admin_client.post("/api/push/subscriptions/lookup", json={"endpoint": browser.endpoint}).json()
-    assert lookup == {"subscribed": True, "preferences": {"campaign_finished": True, "attention": False}}
+    assert lookup == {
+        "subscribed": True,
+        "preferences": {"campaign_finished": True, "attention": False, "reminder": True},
+    }
 
     sent = []
     monkeypatch.setattr(push, "webpush", lambda info, **kw: sent.append((info, kw)))

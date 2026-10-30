@@ -4,18 +4,29 @@ from functools import lru_cache
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
+from app.ai import AIClient
 from app.config import get_settings
 from app.db import get_db
 from app.models import Role, User
 from app.tiktok import TikTokClient
 
 
-def current_user(request: Request, db: Session = Depends(get_db)) -> User:
+def session_user(request: Request, db: Session = Depends(get_db)) -> User:
+    """Вошедший пользователь, даже если ему ещё нужно включить двухфакторный вход."""
     user_id = request.session.get("user_id")
     user = db.get(User, user_id) if user_id else None
-    if user is None:
-        request.session.clear()
+    # После смены пароля или 2FA версия растёт, и выданные раньше сессии перестают действовать.
+    if user is None or request.session.get("sv") != user.session_version:
+        # Удаляем только признаки входа: незавершённый вход с кодом 2FA должен сохраниться.
+        request.session.pop("user_id", None)
+        request.session.pop("sv", None)
         raise HTTPException(401, "Требуется вход")
+    return user
+
+
+def current_user(user: User = Depends(session_user)) -> User:
+    if get_settings().require_2fa and not user.totp_enabled:
+        raise HTTPException(403, "Включите двухфакторный вход в разделе «Безопасность»")
     return user
 
 
@@ -38,6 +49,15 @@ def _tiktok() -> TikTokClient:
 
 def get_tiktok() -> TikTokClient:
     return _tiktok()
+
+
+@lru_cache
+def _ai() -> AIClient:
+    return AIClient.from_settings(get_settings())
+
+
+def get_ai() -> AIClient | None:
+    return _ai() if get_settings().ai_configured else None
 
 
 def _enqueue_account_checks(account_ids: list[int]) -> None:

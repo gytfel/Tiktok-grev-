@@ -17,6 +17,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.sql.expression import false
 
 
 def utcnow() -> datetime:
@@ -87,6 +88,16 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(64), unique=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(16))
+    # Двухфакторный вход (TOTP). Секрет хранится зашифрованным.
+    totp_secret_enc: Mapped[str | None] = mapped_column(Text)
+    totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Последний принятый временной шаг TOTP: один и тот же код нельзя использовать дважды.
+    totp_last_step: Mapped[int | None] = mapped_column(BigInteger)
+    # Подбор кода ограничивается на сервере: счётчик в cookie сессии можно было бы откатить.
+    totp_failures: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    totp_locked_until: Mapped[datetime | None]
+    # Увеличивается при смене пароля или настроек 2FA — старые сессии перестают действовать.
+    session_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
@@ -289,8 +300,75 @@ class PushSubscription(Base):
     p256dh: Mapped[str] = mapped_column(String(255))
     auth: Mapped[str] = mapped_column(String(255))
     user_agent: Mapped[str] = mapped_column(String(255), default="")
-    # Какие события присылать: {"campaign_finished": bool, "attention": bool}.
+    # Какие события присылать: {"campaign_finished": bool, "attention": bool, "reminder": bool}.
     preferences: Mapped[dict[str, Any]] = mapped_column(default=dict)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     last_success_at: Mapped[datetime | None]
     last_error: Mapped[str | None] = mapped_column(Text)
+
+
+class TemplateKind:
+    CAPTION = "caption"
+    HASHTAGS = "hashtags"
+    REPLY = "reply"
+    ALL = (CAPTION, HASHTAGS, REPLY)
+
+
+class TextTemplate(Base):
+    """Готовые подписи, наборы хештегов и ответы на комментарии."""
+
+    __tablename__ = "text_templates"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16), index=True)
+    category: Mapped[str] = mapped_column(String(100), default="")
+    title: Mapped[str] = mapped_column(String(200))
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+
+
+class CommentDraftStatus:
+    DRAFT = "draft"
+    SENT = "sent"
+    ARCHIVED = "archived"
+    ALL = (DRAFT, SENT, ARCHIVED)
+
+
+class CommentDraft(Base):
+    """Черновик ответа на комментарий под своей публикацией. Отправляет его человек вручную."""
+
+    __tablename__ = "comment_drafts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    job_id: Mapped[int | None] = mapped_column(
+        ForeignKey("publication_jobs.id", ondelete="SET NULL"), index=True
+    )
+    account_id: Mapped[int | None] = mapped_column(ForeignKey("accounts.id", ondelete="SET NULL"))
+    video_url: Mapped[str] = mapped_column(String(500), default="")
+    original_comment: Mapped[str] = mapped_column(Text, default="")
+    reply: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(16), default=CommentDraftStatus.DRAFT, index=True)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+    sent_at: Mapped[datetime | None]
+
+    job: Mapped["PublicationJob | None"] = relationship(lazy="joined")
+    account: Mapped[Account | None] = relationship(lazy="joined")
+
+
+class Reminder(Base):
+    __tablename__ = "reminders"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200))
+    note: Mapped[str] = mapped_column(Text, default="")
+    due_at: Mapped[datetime] = mapped_column(index=True)
+    # Страница панели, которую открывает напоминание, например /comments/5.
+    link: Mapped[str] = mapped_column(String(500), default="")
+    comment_draft_id: Mapped[int | None] = mapped_column(ForeignKey("comment_drafts.id", ondelete="SET NULL"))
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    done_at: Mapped[datetime | None]
+    notified_at: Mapped[datetime | None]

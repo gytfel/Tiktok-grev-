@@ -1,4 +1,4 @@
-"""Какие уведомления отправить: сводка по кампаниям, а не сообщение на каждое задание.
+"""Какие уведомления отправить: сводка по кампаниям (а не сообщение на каждое задание) и напоминания.
 
 Отметки notified_at ставятся до отправки: если push-сервис недоступен, уведомление
 потеряется, но не будет приходить повторно каждые несколько секунд.
@@ -9,7 +9,7 @@ from datetime import datetime
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import Campaign, CampaignStatus, JobStatus, PublicationJob
+from app.models import Campaign, CampaignStatus, JobStatus, PublicationJob, Reminder
 from app.push import PushMessage
 
 ATTENTION = (JobStatus.FAILED, JobStatus.NEEDS_REAUTH, JobStatus.NEEDS_REVIEW)
@@ -106,6 +106,25 @@ def collect(db: Session, now: datetime) -> list[tuple[str, PushMessage]]:
                 ),
             )
         )
+
+    due = db.scalars(
+        select(Reminder).where(
+            Reminder.due_at <= now, Reminder.done_at.is_(None), Reminder.notified_at.is_(None)
+        )
+    ).all()
+    for reminder in due:
+        messages.append(
+            (
+                "reminder",
+                PushMessage(
+                    title=f"Напоминание: {reminder.title}",
+                    body=reminder.note[:200],
+                    url=reminder.link or "/reminders",
+                    tag=f"reminder-{reminder.id}",
+                ),
+            )
+        )
+        reminder.notified_at = now
 
     db.commit()
     return messages

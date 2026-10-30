@@ -41,6 +41,14 @@ class Settings(BaseSettings):
 
     admin_username: str = ""
     admin_password: str = ""
+    # Требовать двухфакторный вход: без него пользователь попадает только на страницу настройки 2FA.
+    require_2fa: bool = False
+
+    # AI-помощник: любой сервис с OpenAI-совместимым API (Ollama, OpenRouter, Gemini, Groq и др.).
+    ai_base_url: str = ""
+    ai_api_key: str = ""
+    ai_model: str = ""
+    ai_timeout_s: float = 120
 
     # Контакт для push-сервисов (mailto: или https:). По умолчанию — PUBLIC_BASE_URL, если он на HTTPS.
     vapid_subject: str = ""
@@ -49,6 +57,10 @@ class Settings(BaseSettings):
     @property
     def oauth_redirect_uri(self) -> str:
         return self.public_base_url.rstrip("/") + "/api/oauth/tiktok/callback"
+
+    @property
+    def ai_configured(self) -> bool:
+        return bool(self.ai_base_url and self.ai_model)
 
     @property
     def tiktok_configured(self) -> bool:

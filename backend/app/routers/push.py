@@ -19,6 +19,7 @@ class SubscriptionKeys(BaseModel):
 class Preferences(BaseModel):
     campaign_finished: bool = True
     attention: bool = True
+    reminder: bool = True
 
 
 class SubscriptionIn(BaseModel):

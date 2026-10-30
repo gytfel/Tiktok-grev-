@@ -22,6 +22,7 @@ class UserOut(ORM):
     id: int
     username: str
     role: str
+    totp_enabled: bool = False
 
 
 # --- аккаунты -----------------------------------------------------------------------------

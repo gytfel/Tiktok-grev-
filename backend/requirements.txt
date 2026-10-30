@@ -11,3 +11,5 @@ argon2-cffi==25.1.0
 itsdangerous==2.2.0
 python-multipart==0.0.32
 pywebpush==2.5.0
+pyotp==2.10.0
+qrcode==8.2
