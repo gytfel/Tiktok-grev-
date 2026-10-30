@@ -26,6 +26,11 @@ const EVENTS: { key: keyof NotificationPreferences; title: string; text: string 
     title: "Задания требуют внимания",
     text: "Ошибки, потерянная авторизация, ручная проверка. Одно уведомление на кампанию, а не на каждый аккаунт.",
   },
+  {
+    key: "reminder",
+    title: "Напоминания",
+    text: "Например, ответить на комментарии к публикации в назначенное время.",
+  },
 ];
 
 function errorText(e: unknown): string {
@@ -94,7 +99,11 @@ function PushCard() {
   const toast = useToast();
   const support = pushSupport();
   const [sub, setSub] = useState<PushSubscription | null | undefined>(undefined);
-  const [prefs, setPrefs] = useState<NotificationPreferences>({ campaign_finished: true, attention: true });
+  const [prefs, setPrefs] = useState<NotificationPreferences>({
+    campaign_finished: true,
+    attention: true,
+    reminder: true,
+  });
   const [permission, setPermission] = useState<NotificationPermission>(
     "Notification" in window ? Notification.permission : "default",
   );
@@ -213,7 +222,7 @@ function PushCard() {
       <>
         <p className="muted">Выберите, о чём сообщать, и включите уведомления. Браузер попросит разрешение.</p>
         {options}
-        <button className="btn btn-primary btn-block" onClick={enable} disabled={busy || (!prefs.attention && !prefs.campaign_finished)}>
+        <button className="btn btn-primary btn-block" onClick={enable} disabled={busy || !Object.values(prefs).some(Boolean)}>
           {busy ? "Подключение…" : "Включить уведомления"}
         </button>
       </>

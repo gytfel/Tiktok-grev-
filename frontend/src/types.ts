@@ -4,6 +4,7 @@ export interface User {
   id: number;
   username: string;
   role: Role;
+  totp_enabled: boolean;
 }
 
 export interface Meta {
@@ -11,6 +12,8 @@ export interface Meta {
   redirect_uri: string;
   emulator: boolean;
   max_upload_bytes: number;
+  require_2fa: boolean;
+  ai_enabled: boolean;
 }
 
 export interface Group {
@@ -181,4 +184,48 @@ export interface AuditEvent {
   action: string;
   details: Record<string, unknown>;
   created_at: string;
+}
+
+export type TemplateKind = "caption" | "hashtags" | "reply";
+
+export interface TextTemplate {
+  id: number;
+  kind: TemplateKind;
+  category: string;
+  title: string;
+  body: string;
+  updated_at: string;
+}
+
+export type AiTask = "caption" | "hashtags" | "ideas" | "reply";
+
+export type CommentStatus = "draft" | "sent" | "archived";
+
+export interface CommentDraft {
+  id: number;
+  job_id: number | null;
+  campaign_id: number | null;
+  campaign_title: string | null;
+  account_id: number | null;
+  account_label: string | null;
+  account_username: string | null;
+  video_url: string;
+  original_comment: string;
+  reply: string;
+  status: CommentStatus;
+  created_at: string;
+  updated_at: string;
+  sent_at: string | null;
+}
+
+export interface Reminder {
+  id: number;
+  title: string;
+  note: string;
+  due_at: string;
+  link: string;
+  comment_draft_id: number | null;
+  created_at: string;
+  done_at: string | null;
+  notified_at: string | null;
 }

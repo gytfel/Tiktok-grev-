@@ -31,8 +31,10 @@ services:
   # Панель и API. При старте применяет миграции.
   app:
     <<: *app
+    # По умолчанию панель доступна только с этого компьютера; снаружи — через HTTPS
+    # (docker-compose.https.yml или туннель). APP_BIND=0.0.0.0 открывает порт для сети.
     ports:
-      - "8000:8000"
+      - "${APP_BIND:-127.0.0.1}:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -58,6 +60,26 @@ services:
     depends_on:
       app:
         condition: service_healthy
+
+  # Резервные копии базы и видео в папку ./backups (по расписанию, см. scripts/backup.sh).
+  backup:
+    image: postgres:16-alpine
+    environment:
+      PGHOST: postgres
+      PGUSER: tiktok
+      PGPASSWORD: tiktok
+      PGDATABASE: tiktok
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+    volumes:
+      - ./backups:/backups
+      - media:/data/media:ro
+      - ./scripts/backup.sh:/backup.sh:ro
+    entrypoint: ["sh", "/backup.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:

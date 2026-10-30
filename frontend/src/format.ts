@@ -1,4 +1,4 @@
-import type { AccountStatus, CampaignStatus, JobStatus, PrivacyLevel } from "./types";
+import type { AccountStatus, CampaignStatus, CommentStatus, JobStatus, PrivacyLevel, TemplateKind } from "./types";
 
 export const PRIVACY_LABELS: Record<PrivacyLevel, string> = {
   PUBLIC_TO_EVERYONE: "Все",
@@ -72,7 +72,57 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   "job.retried": "Повтор задания",
   "job.cancelled": "Задание отменено",
   "job.resolved": "Результат задания отмечен вручную",
+  "user.password_changed": "Изменён пароль",
+  "user.2fa_enabled": "Включён двухфакторный вход",
+  "user.2fa_disabled": "Отключён двухфакторный вход",
+  "user.2fa_reset": "Сброшен двухфакторный вход",
+  "template.created": "Создан шаблон",
+  "template.updated": "Изменён шаблон",
+  "template.deleted": "Удалён шаблон",
+  "ai.generated": "AI сгенерировал варианты",
+  "comment.created": "Создан черновик ответа",
+  "comment.sent": "Ответ отмечен как отправленный",
+  "comment.draft": "Ответ возвращён в черновики",
+  "comment.archived": "Ответ перенесён в архив",
+  "comment.deleted": "Удалён черновик ответа",
+  "reminder.created": "Создано напоминание",
+  "reminder.done": "Напоминание выполнено",
+  "reminder.deleted": "Удалено напоминание",
 };
+
+export const TEMPLATE_KINDS: Record<TemplateKind, string> = {
+  caption: "Подписи",
+  hashtags: "Хештеги",
+  reply: "Ответы на комментарии",
+};
+
+export const COMMENT_STATUS: Record<CommentStatus, { label: string; tone: Tone }> = {
+  draft: { label: "Черновик", tone: "info" },
+  sent: { label: "Отправлен", tone: "success" },
+  archived: { label: "В архиве", tone: "muted" },
+};
+
+/** Значение для <input type="datetime-local"> в местном времени. */
+export function toLocalInput(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Копирует текст; без HTTPS clipboard API недоступен, поэтому есть запасной способ. */
+export async function copyText(text: string): Promise<void> {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.style.position = "fixed";
+  area.style.opacity = "0";
+  document.body.appendChild(area);
+  area.select();
+  document.execCommand("copy");
+  area.remove();
+}
 
 const dateTime = new Intl.DateTimeFormat("ru-RU", {
   day: "2-digit",

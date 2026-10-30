@@ -1,0 +1,32 @@
+# Бесплатный AI-помощник на своём сервере (Ollama):
+#   docker compose -f docker-compose.yml -f docker-compose.ai.yml up -d --build
+# При первом запуске скачивается модель AI_MODEL (по умолчанию qwen2.5:3b, около 2 ГБ).
+# Для модели на 3B параметров нужно около 4 ГБ свободной памяти; видеокарта не обязательна, но ускоряет ответы.
+x-ai-env: &ai-env
+  AI_BASE_URL: http://ollama:11434/v1
+  AI_MODEL: ${AI_MODEL:-qwen2.5:3b}
+  AI_API_KEY: ""
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+  # Однократно скачивает модель и завершается.
+  ollama-pull:
+    image: ollama/ollama:latest
+    environment:
+      OLLAMA_HOST: ollama:11434
+      MODEL: ${AI_MODEL:-qwen2.5:3b}
+    entrypoint: ["sh", "-c", "sleep 3 && ollama pull \"$$MODEL\""]
+    depends_on:
+      - ollama
+    restart: "no"
+
+  app:
+    environment: *ai-env
+
+volumes:
+  ollama:

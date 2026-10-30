@@ -13,12 +13,17 @@ import CampaignPage from "./pages/CampaignPage";
 import AuditPage from "./pages/AuditPage";
 import UsersPage from "./pages/UsersPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import TemplatesPage from "./pages/TemplatesPage";
+import CommentsPage from "./pages/CommentsPage";
+import RemindersPage from "./pages/RemindersPage";
+import SecurityPage from "./pages/SecurityPage";
 
 interface Session {
   user: User;
   meta: Meta;
   canWrite: boolean;
   logout: () => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
 const SessionContext = createContext<Session | null>(null);
@@ -53,8 +58,12 @@ function Shell({ session }: { session: Session }) {
           {session.canWrite && <NavLink to="/campaigns/new">Новая кампания</NavLink>}
           <NavLink to="/accounts">Аккаунты</NavLink>
           <NavLink to="/media">Видео</NavLink>
-          <NavLink to="/audit">Журнал</NavLink>
+          <NavLink to="/templates">Шаблоны</NavLink>
+          <NavLink to="/comments">Комментарии</NavLink>
+          <NavLink to="/reminders">Напоминания</NavLink>
           <NavLink to="/notifications">Уведомления</NavLink>
+          <NavLink to="/audit">Журнал</NavLink>
+          <NavLink to="/security">Безопасность</NavLink>
           {user.role === "admin" && <NavLink to="/users">Пользователи</NavLink>}
         </nav>
         <div className="sidebar-foot">
@@ -86,6 +95,10 @@ function Shell({ session }: { session: Session }) {
           <Route path="/media" element={<MediaPage />} />
           <Route path="/audit" element={<AuditPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/templates" element={<TemplatesPage />} />
+          <Route path="/comments" element={<CommentsPage />} />
+          <Route path="/reminders" element={<RemindersPage />} />
+          <Route path="/security" element={<SecurityPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="*" element={<Navigate to="/campaigns" replace />} />
         </Routes>
@@ -118,7 +131,11 @@ function Shell({ session }: { session: Session }) {
         <div className="sheet-backdrop" onClick={() => setMoreOpen(false)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()} role="menu">
             {session.canWrite && <NavLink to="/campaigns/new">Новая кампания</NavLink>}
+            <NavLink to="/comments">Ответы на комментарии</NavLink>
+            <NavLink to="/reminders">Напоминания</NavLink>
+            <NavLink to="/templates">Шаблоны</NavLink>
             <NavLink to="/audit">Журнал действий</NavLink>
+            <NavLink to="/security">Безопасность</NavLink>
             {user.role === "admin" && <NavLink to="/users">Пользователи панели</NavLink>}
             <div className="sheet-foot">
               <span className="muted small">
@@ -131,6 +148,17 @@ function Shell({ session }: { session: Session }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SetupTwoFactorShell({ session }: { session: Session }) {
+  return (
+    <div className="center-page">
+      <SecurityPage />
+      <button className="link-btn" onClick={session.logout}>
+        Выйти
+      </button>
     </div>
   );
 }
@@ -168,10 +196,11 @@ function Root() {
     );
   }
   if (state === null) return <LoginPage onLogin={load} />;
-  const session: Session = { ...state, canWrite: state.user.role !== "viewer", logout };
+  const session: Session = { ...state, canWrite: state.user.role !== "viewer", logout, refresh: load };
+  const mustSetup2fa = state.meta.require_2fa && !state.user.totp_enabled;
   return (
     <SessionContext.Provider value={session}>
-      <Shell session={session} />
+      {mustSetup2fa ? <SetupTwoFactorShell session={session} /> : <Shell session={session} />}
     </SessionContext.Provider>
   );
 }

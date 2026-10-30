@@ -244,6 +244,13 @@ function JobResult({ job }: { job: Job }) {
 }
 
 function JobActions({ job, act }: { job: Job; act: (path: string, body?: unknown, success?: string) => void }) {
+  if (job.status === "published") {
+    return (
+      <Link className="btn btn-sm" to={`/comments?job=${job.id}`}>
+        Ответ на комментарий
+      </Link>
+    );
+  }
   if ((job.status === "failed" && job.retryable) || job.status === "needs_reauth") {
     return (
       <button className="btn btn-sm" onClick={() => act(`/api/jobs/${job.id}/retry`, undefined, "Задание снова в очереди")}>

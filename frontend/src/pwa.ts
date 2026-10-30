@@ -3,6 +3,7 @@ import { api } from "./api";
 export interface NotificationPreferences {
   campaign_finished: boolean;
   attention: boolean;
+  reminder: boolean;
 }
 
 // --- service worker и установка ---------------------------------------------------------

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useSession } from "../App";
 import { Avatar, Badge, Empty, Spinner, useToast } from "../components/ui";
+import { AiVariantsModal, TemplatePicker } from "../components/assist";
 import { VideoUploader } from "../components/VideoUploader";
 import {
   ACCOUNT_STATUS,
@@ -30,7 +31,7 @@ const BRANDED_POLICY = "https://www.tiktok.com/legal/page/global/bc-policy/en";
 const STEPS = ["Видео", "Аккаунты", "Публикация", "Проверка и запуск"];
 
 export default function NewCampaignPage() {
-  const { canWrite } = useSession();
+  const { canWrite, meta } = useSession();
   const toast = useToast();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -57,6 +58,15 @@ export default function NewCampaignPage() {
   const [startAt, setStartAt] = useState("");
   const [allowDuplicates, setAllowDuplicates] = useState(false);
   const [overrides, setOverrides] = useState<Record<number, string>>({});
+  const [helper, setHelper] = useState<null | "caption" | "hashtags" | "ai-caption" | "ai-hashtags">(null);
+
+  function addToCaption(text: string, mode: "replace" | "append") {
+    setCaption((current) => {
+      if (mode === "replace" || !current.trim()) return text;
+      return `${current.trimEnd()}${mode === "append" && text.startsWith("#") ? " " : "\n\n"}${text}`;
+    });
+    setHelper(null);
+  }
 
   const [preview, setPreview] = useState<CampaignPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -255,6 +265,24 @@ export default function NewCampaignPage() {
               />
               <small className="muted">Для отдельных аккаунтов подпись можно изменить на шаге проверки.</small>
             </label>
+            <div className="actions caption-tools">
+              <button type="button" className="btn btn-sm" onClick={() => setHelper("caption")}>
+                Шаблон подписи
+              </button>
+              <button type="button" className="btn btn-sm" onClick={() => setHelper("hashtags")}>
+                Набор хештегов
+              </button>
+              {meta.ai_enabled && (
+                <>
+                  <button type="button" className="btn btn-sm" onClick={() => setHelper("ai-caption")}>
+                    AI: подпись
+                  </button>
+                  <button type="button" className="btn btn-sm" onClick={() => setHelper("ai-hashtags")}>
+                    AI: хештеги
+                  </button>
+                </>
+              )}
+            </div>
 
             <fieldset className="field">
               <legend>Кто может смотреть видео</legend>
@@ -379,6 +407,24 @@ export default function NewCampaignPage() {
           }
           consent={consent}
           onConsent={setConsent}
+        />
+      )}
+
+      {(helper === "caption" || helper === "hashtags") && (
+        <TemplatePicker
+          kind={helper}
+          onClose={() => setHelper(null)}
+          onPick={(body) => addToCaption(body, helper === "caption" && !caption.trim() ? "replace" : "append")}
+        />
+      )}
+      {(helper === "ai-caption" || helper === "ai-hashtags") && (
+        <AiVariantsModal
+          task={helper === "ai-caption" ? "caption" : "hashtags"}
+          initialTopic={title}
+          initialText={caption}
+          onClose={() => setHelper(null)}
+          onPick={(text) => addToCaption(text, helper === "ai-caption" ? "replace" : "append")}
+          pickLabel={helper === "ai-caption" ? "Использовать" : "Добавить"}
         />
       )}
 

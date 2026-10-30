@@ -58,11 +58,19 @@ def test_parse_variants_respects_count():
     assert ai.parse_variants('["1", "2", "3", "4"]', 2) == ["1", "2"]
 
 
+@pytest.mark.parametrize("preamble", ["Вот хештеги для видео:", "Хештеги:", "Конечно! Держите подборку"])
+def test_hashtags_ignore_chatty_preamble(preamble):
+    fake = FakeLLM(f"{preamble}\n1. #осень\n2. #скидки\n3. #шопинг")
+    result = ai.generate(client_for(fake), ai.GenerateRequest(task="hashtags", topic="x", count=5))
+    assert result == ["#осень", "#скидки", "#шопинг"]
+
+
 def test_normalize_hashtags():
-    assert ai.normalize_hashtags(["#Скидки", "sale #autumn", "#sale!", "", "#"], 10) == [
+    assert ai.normalize_hashtags(["#Скидки", "sale #autumn", "#sale!", "", "#", "весна"], 10) == [
         "#Скидки",
-        "#sale",
         "#autumn",
+        "#sale",
+        "#весна",
     ]
 
 

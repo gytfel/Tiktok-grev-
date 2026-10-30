@@ -1,0 +1,23 @@
+# HTTPS через Caddy (сертификат Let's Encrypt выдаётся автоматически):
+#   docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build
+# В .env: DOMAIN=panel.example.com, PUBLIC_BASE_URL=https://panel.example.com, SESSION_HTTPS_ONLY=true
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?Укажите DOMAIN в .env}
+    volumes:
+      - ./infrastructure/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

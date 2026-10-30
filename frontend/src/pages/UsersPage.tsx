@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, ApiError } from "../api";
 import { useSession } from "../App";
-import { Empty, Spinner, useToast } from "../components/ui";
+import { Badge, Empty, Spinner, useToast } from "../components/ui";
 import type { Role, User } from "../types";
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -37,6 +37,17 @@ export default function UsersPage() {
     }
   }
 
+  async function resetTwoFactor(user: User) {
+    if (!confirm(`Сбросить двухфакторный вход для ${user.username}? Его сессии будут завершены, 2FA нужно будет настроить заново.`)) return;
+    try {
+      await api.post(`/api/users/${user.id}/reset-2fa`);
+      await load();
+      toast(`2FA для ${user.username} сброшен`, "success");
+    } catch (err) {
+      toast((err as ApiError).message, "danger");
+    }
+  }
+
   async function remove(user: User) {
     if (!confirm(`Удалить пользователя ${user.username}?`)) return;
     try {
@@ -65,12 +76,20 @@ export default function UsersPage() {
             {users.map((u) => (
               <li key={u.id}>
                 <span>
-                  <strong>{u.username}</strong> <span className="muted small">{ROLE_LABELS[u.role].split(" —")[0]}</span>
+                  <strong>{u.username}</strong> <span className="muted small">{ROLE_LABELS[u.role].split(" —")[0]}</span>{" "}
+                  {u.totp_enabled && <Badge tone="success">2FA</Badge>}
                 </span>
                 {u.id !== me.id && (
-                  <button className="link-btn text-danger" onClick={() => remove(u)}>
-                    Удалить
-                  </button>
+                  <span className="row-actions">
+                    {u.totp_enabled && (
+                      <button className="link-btn" onClick={() => resetTwoFactor(u)}>
+                        Сбросить 2FA
+                      </button>
+                    )}
+                    <button className="link-btn text-danger" onClick={() => remove(u)}>
+                      Удалить
+                    </button>
+                  </span>
                 )}
               </li>
             ))}
@@ -83,8 +102,8 @@ export default function UsersPage() {
             <input value={username} onChange={(e) => setUsername(e.target.value)} minLength={2} required />
           </label>
           <label className="field">
-            <span>Пароль (от 8 символов)</span>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required autoComplete="new-password" />
+            <span>Пароль (от 10 символов)</span>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={10} required autoComplete="new-password" />
           </label>
           <fieldset className="field">
             <legend>Роль</legend>

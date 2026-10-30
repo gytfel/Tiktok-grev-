@@ -107,7 +107,14 @@ def normalize_hashtags(items: list[str], count: int) -> list[str]:
     tags: list[str] = []
     seen: set[str] = set()
     for item in items:
-        for token in re.split(r"[\s,;]+", item):
+        tokens = [t for t in re.split(r"[\s,;]+", item) if t]
+        explicit = [t for t in tokens if t.startswith("#")]
+        if explicit:
+            tokens = explicit
+        elif len(tokens) > 2 or item.rstrip().endswith(":"):
+            # Фраза без # — пояснение модели вроде «Вот хештеги:», а не хештег.
+            continue
+        for token in tokens:
             word = re.sub(r"[^\w]", "", token.lstrip("#"))
             if word and word.lower() not in seen:
                 seen.add(word.lower())
