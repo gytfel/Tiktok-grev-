@@ -12,9 +12,10 @@ from app.security import hash_password
 class FakeLLM:
     """OpenAI-совместимый /chat/completions: так отвечают Ollama, OpenRouter, Gemini и другие."""
 
-    def __init__(self, content="", status=200):
+    def __init__(self, content="", status=200, error="error"):
         self.content = content
         self.status = status
+        self.error = error
         self.requests = []
 
     def handle(self, request: httpx.Request) -> httpx.Response:
@@ -22,7 +23,7 @@ class FakeLLM:
             {"url": str(request.url), "headers": dict(request.headers), "body": json.loads(request.content)}
         )
         if self.status != 200:
-            return httpx.Response(self.status, text="error")
+            return httpx.Response(self.status, text=self.error)
         return httpx.Response(
             200, json={"choices": [{"message": {"role": "assistant", "content": self.content}}]}
         )
@@ -108,6 +109,15 @@ def test_hashtags_are_normalized():
 def test_service_errors_are_explained(status, message):
     with pytest.raises(ai.AIError, match=message):
         ai.generate(client_for(FakeLLM(status=status)), ai.GenerateRequest(task="caption", topic="x"))
+
+
+def test_gemini_invalid_key_is_explained():
+    gemini = FakeLLM(
+        status=400,
+        error='[{"error": {"code": 400, "message": "API key not valid. Please pass a valid API key."}}]',
+    )
+    with pytest.raises(ai.AIError, match="ключ"):
+        ai.generate(client_for(gemini), ai.GenerateRequest(task="caption", topic="x"))
 
 
 def test_empty_answer_is_an_error():

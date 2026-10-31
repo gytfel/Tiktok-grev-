@@ -155,7 +155,8 @@ class AIClient:
             ) from exc
         except httpx.TransportError as exc:
             raise AIError(f"AI-сервис недоступен: {exc}") from exc
-        if r.status_code in (401, 403):
+        # Gemini отвечает на неверный ключ кодом 400, а не 401.
+        if r.status_code in (401, 403) or (r.status_code == 400 and "API key" in r.text):
             raise AIError("AI-сервис отклонил ключ доступа (AI_API_KEY)")
         if r.status_code == 429:
             raise AIError("Исчерпан лимит AI-сервиса. Попробуйте позже.")
