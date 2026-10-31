@@ -60,6 +60,14 @@ class Settings(BaseSettings):
     vapid_subject: str = ""
     notify_interval_s: int = 20
 
+    # Монитор системы: как часто панель проверяет сервисы и присылает уведомления о сбоях (0 — не проверять).
+    monitor_interval_s: float = 60
+    # Папка резервных копий (сервис backup) — чтобы монитор видел, когда была последняя копия.
+    backup_dir: str = ""
+    backup_interval_hours: float = 24
+    # Токен для /api/metrics (Prometheus). Пусто — адрес выключен.
+    metrics_token: str = ""
+
     @property
     def oauth_redirect_uri(self) -> str:
         return self.public_base_url.rstrip("/") + "/api/oauth/tiktok/callback"

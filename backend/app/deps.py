@@ -52,6 +52,17 @@ def get_tiktok() -> TikTokClient:
 
 
 @lru_cache
+def _probes():
+    from app.monitor import Probes
+
+    return Probes(get_settings())
+
+
+def get_probes():
+    return _probes()
+
+
+@lru_cache
 def _ai() -> AIClient:
     return AIClient.from_settings(get_settings())
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../api";
+import { useSession } from "../App";
 import { Badge, Spinner, useToast } from "../components/ui";
 import {
   canPromptInstall,
@@ -30,6 +31,11 @@ const EVENTS: { key: keyof NotificationPreferences; title: string; text: string 
     key: "reminder",
     title: "Напоминания",
     text: "Например, ответить на комментарии к публикации в назначенное время.",
+  },
+  {
+    key: "system",
+    title: "Сбои системы",
+    text: "Остановились воркеры, переполняется диск, давно не было резервной копии. Только для администраторов и операторов.",
   },
 ];
 
@@ -96,6 +102,7 @@ function InstallCard() {
 }
 
 function PushCard() {
+  const { canWrite } = useSession();
   const toast = useToast();
   const support = pushSupport();
   const [sub, setSub] = useState<PushSubscription | null | undefined>(undefined);
@@ -103,6 +110,7 @@ function PushCard() {
     campaign_finished: true,
     attention: true,
     reminder: true,
+    system: true,
   });
   const [permission, setPermission] = useState<NotificationPermission>(
     "Notification" in window ? Notification.permission : "default",
@@ -180,7 +188,7 @@ function PushCard() {
 
   const options = (
     <div className="option-list">
-      {EVENTS.map((event) => (
+      {EVENTS.filter((event) => event.key !== "system" || canWrite).map((event) => (
         <label key={event.key} className="option">
           <input type="checkbox" checked={prefs[event.key]} onChange={() => toggle(event.key)} />
           <span>

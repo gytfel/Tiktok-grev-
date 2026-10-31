@@ -19,6 +19,7 @@ import RemindersPage from "./pages/RemindersPage";
 import SecurityPage from "./pages/SecurityPage";
 import CalendarPage from "./pages/CalendarPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
+import SystemPage from "./pages/SystemPage";
 import { setZone } from "./time";
 
 interface Session {
@@ -68,6 +69,7 @@ function Shell({ session }: { session: Session }) {
           <NavLink to="/reminders">Напоминания</NavLink>
           <NavLink to="/notifications">Уведомления</NavLink>
           <NavLink to="/audit">Журнал</NavLink>
+          {session.canWrite && <NavLink to="/system">Система</NavLink>}
           <NavLink to="/security">Безопасность</NavLink>
           {user.role === "admin" && <NavLink to="/users">Пользователи</NavLink>}
         </nav>
@@ -102,6 +104,7 @@ function Shell({ session }: { session: Session }) {
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/system" element={session.canWrite ? <SystemPage /> : <Navigate to="/campaigns" replace />} />
           <Route path="/templates" element={<TemplatesPage />} />
           <Route path="/comments" element={<CommentsPage />} />
           <Route path="/reminders" element={<RemindersPage />} />
@@ -144,6 +147,7 @@ function Shell({ session }: { session: Session }) {
             <NavLink to="/reminders">Напоминания</NavLink>
             <NavLink to="/templates">Шаблоны</NavLink>
             <NavLink to="/audit">Журнал действий</NavLink>
+            {session.canWrite && <NavLink to="/system">Система</NavLink>}
             <NavLink to="/security">Безопасность</NavLink>
             {user.role === "admin" && <NavLink to="/users">Пользователи панели</NavLink>}
             <div className="sheet-foot">

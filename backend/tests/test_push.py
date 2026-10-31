@@ -191,7 +191,7 @@ def test_subscription_api(admin_client, monkeypatch):
     lookup = admin_client.post("/api/push/subscriptions/lookup", json={"endpoint": browser.endpoint}).json()
     assert lookup == {
         "subscribed": True,
-        "preferences": {"campaign_finished": True, "attention": False, "reminder": True},
+        "preferences": {"campaign_finished": True, "attention": False, "reminder": True, "system": True},
     }
 
     sent = []

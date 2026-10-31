@@ -89,6 +89,7 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   "reminder.created": "Создано напоминание",
   "reminder.done": "Напоминание выполнено",
   "reminder.deleted": "Удалено напоминание",
+  "analytics.refresh": "Запущен сбор аналитики",
 };
 
 export const TEMPLATE_KINDS: Record<TemplateKind, string> = {

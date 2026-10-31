@@ -4,6 +4,7 @@ export interface NotificationPreferences {
   campaign_finished: boolean;
   attention: boolean;
   reminder: boolean;
+  system: boolean;
 }
 
 // --- service worker и установка ---------------------------------------------------------

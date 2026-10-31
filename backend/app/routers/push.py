@@ -20,6 +20,8 @@ class Preferences(BaseModel):
     campaign_finished: bool = True
     attention: bool = True
     reminder: bool = True
+    # Сбои системы приходят только администраторам и операторам.
+    system: bool = True
 
 
 class SubscriptionIn(BaseModel):

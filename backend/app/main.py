@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import mimetypes
 from contextlib import asynccontextmanager
@@ -9,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 from starlette.middleware.sessions import SessionMiddleware
 
+from app import monitor
 from app.config import get_settings
 from app.db import get_sessionmaker
 from app.models import Role, User
@@ -23,6 +25,7 @@ from app.routers import (
     media,
     oauth,
     push,
+    system,
 )
 from app.security import hash_password
 
@@ -55,7 +58,11 @@ def bootstrap_admin() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     bootstrap_admin()
+    interval = get_settings().monitor_interval_s
+    watcher = asyncio.create_task(monitor.watch(interval)) if interval > 0 else None
     yield
+    if watcher:
+        watcher.cancel()
 
 
 def create_app() -> FastAPI:
@@ -69,7 +76,20 @@ def create_app() -> FastAPI:
         same_site="lax",
         https_only=settings.session_https_only,
     )
-    for module in (auth, accounts, oauth, media, campaigns, push, assistant, comments, calendar, analytics):
+    routers = (
+        auth,
+        accounts,
+        oauth,
+        media,
+        campaigns,
+        push,
+        assistant,
+        comments,
+        calendar,
+        analytics,
+        system,
+    )
+    for module in routers:
         app.include_router(module.router)
 
     @app.get("/api/health")

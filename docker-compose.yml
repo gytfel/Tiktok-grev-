@@ -5,6 +5,8 @@ x-app: &app
   environment:
     DATABASE_URL: postgresql+psycopg://tiktok:tiktok@postgres:5432/tiktok
     REDIS_URL: redis://redis:6379/0
+    # Монитор системы смотрит, когда была последняя резервная копия (папка подключена к сервису app).
+    BACKUP_DIR: /backups
   volumes:
     - media:/data/media
   restart: unless-stopped
@@ -35,6 +37,9 @@ services:
     # (docker-compose.https.yml или туннель). APP_BIND=0.0.0.0 открывает порт для сети.
     ports:
       - "${APP_BIND:-127.0.0.1}:8000:8000"
+    volumes:
+      - media:/data/media
+      - ./backups:/backups:ro
     depends_on:
       postgres:
         condition: service_healthy

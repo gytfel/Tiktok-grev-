@@ -23,6 +23,7 @@ os.environ.update(
         "ADMIN_USERNAME": "",
         "ADMIN_PASSWORD": "",
         "UPLOAD_CHUNK_SIZE": str(10 * 1024 * 1024),
+        "MONITOR_INTERVAL_S": "0",
     }
 )
 

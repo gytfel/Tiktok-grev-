@@ -8,8 +8,9 @@
 from functools import lru_cache
 
 from celery import Celery
+from celery.signals import beat_init
 
-from app import analytics, notifications, publishing, push
+from app import analytics, monitor, notifications, publishing, push
 from app.accounts_service import check_account
 from app.config import get_settings
 from app.db import get_sessionmaker
@@ -74,8 +75,21 @@ def poll_job_task(job_id: int) -> None:
         publishing.poll_job(db, tiktok(), settings, job_id)
 
 
+@lru_cache
+def probes() -> monitor.Probes:
+    return monitor.Probes(settings)
+
+
+@beat_init.connect
+def _beat_started(**_kwargs) -> None:
+    # Первая плановая отметка появится только через минуту — без этой монитор показал бы сбой.
+    monitor.record_heartbeat(probes(), utcnow())
+
+
 @celery_app.task
 def recover_task() -> int:
+    # Задача запускается планировщиком раз в минуту — заодно оставляет отметку для монитора.
+    monitor.record_heartbeat(probes(), utcnow())
     with get_sessionmaker()() as db:
         return publishing.recover_stale_jobs(db, utcnow())
 

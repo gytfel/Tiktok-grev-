@@ -2012,3 +2012,113 @@ textarea {
     font-size: 22px;
   }
 }
+
+/* --- монитор системы ----------------------------------------------------------------- */
+
+.sys-ok {
+  --tone: var(--success);
+  --tone-soft: var(--success-soft);
+}
+.sys-warning {
+  --tone: var(--warning);
+  --tone-soft: var(--warning-soft);
+}
+.sys-critical {
+  --tone: var(--danger);
+  --tone-soft: var(--danger-soft);
+}
+.sys-unknown {
+  --tone: var(--muted);
+  --tone-soft: var(--neutral-soft);
+}
+.status-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--tone);
+  color: var(--surface);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.system-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--tone-soft);
+  color: var(--tone);
+  margin-bottom: 16px;
+}
+.system-banner .status-icon {
+  width: 26px;
+  height: 26px;
+  font-size: 14px;
+}
+.system-banner strong {
+  font-size: 16px;
+}
+.check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.card.check {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-left: 3px solid var(--tone);
+}
+.check-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.check-title {
+  color: var(--muted);
+  font-size: 13px;
+}
+.check-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tone);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.check-status .status-icon {
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+}
+.check-value {
+  font-size: 15px;
+}
+.check p {
+  margin: 0;
+}
+.job-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+}
+.job-count {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.job-count strong {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
