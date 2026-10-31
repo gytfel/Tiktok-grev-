@@ -86,6 +86,31 @@ docker compose -f docker-compose.yml -f docker-compose.emulator.yml up --build
 - Чтобы увидеть поведение приложения без аудита, раскомментируйте `EMULATOR_UNAUDITED: "1"`
   в `docker-compose.emulator.yml`.
 
+## Установка на сервер
+
+Нужен сервер с Ubuntu или Debian (подойдёт 1 ГБ памяти — скрипт добавит подкачку) и домен, который указывает
+на его IP: свой или бесплатный поддомен [DuckDNS](https://www.duckdns.org). Подключитесь к серверу по SSH
+(в Windows: PowerShell → `ssh root@IP-сервера`) и выполните:
+
+```bash
+apt-get update && apt-get install -y git
+git clone -b feature/publication-queue https://github.com/gytfel/Tiktok-grev-.git
+cd Tiktok-grev-
+sudo bash scripts/install.sh
+```
+
+Скрипт спросит домен, ключи TikTok (можно оставить пустыми и добавить позже) и данные для страниц `/terms`
+и `/privacy`, затем сам:
+- создаст `.env` со случайными ключами и паролем администратора;
+- установит Docker, добавит подкачку на маленьком сервере, откроет порты 80 и 443;
+- соберёт и запустит панель с HTTPS (сертификат Let's Encrypt получает Caddy);
+- покажет адрес, логин и пароль и адреса для настроек приложения TikTok.
+
+Повторный запуск того же скрипта обновляет настройки и перезапускает панель; ключи шифрования при этом
+не меняются. Обновление кода: `git pull && sudo bash scripts/install.sh`.
+
+Что заполнить в TikTok и как записать демонстрационное видео для проверки — в [docs/tiktok-review.md](docs/tiktok-review.md).
+
 ## Подключение настоящего TikTok
 
 1. На [developers.tiktok.com](https://developers.tiktok.com) создайте приложение и добавьте
