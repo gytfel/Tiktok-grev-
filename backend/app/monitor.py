@@ -40,6 +40,7 @@ HEARTBEAT_KEY = "monitor:heartbeat"
 SUCCESS_CODES = ("published", "sent_to_inbox")
 # Сколько задание может ждать выдачи воркеру: диспетчер запускается каждые 5 секунд.
 OVERDUE_AFTER = timedelta(minutes=5)
+STALL_AFTER = timedelta(minutes=10)
 HEARTBEAT_STALE = timedelta(minutes=3)
 
 
@@ -215,26 +216,41 @@ def collect(db: Session, probes: Probes, now: datetime, settings: Settings | Non
 
     # Очередь заданий.
     jobs = dict(db.execute(select(PublicationJob.status, func.count()).group_by(PublicationJob.status)).all())
+    # Большая кампания разбирается долго, и это нормально. Сбой — когда задания ждут,
+    # а загрузки не идут: ничего не выполняется и ни одна попытка не начиналась 10 минут.
     overdue_filter = (
         PublicationJob.status == JobStatus.QUEUED,
         PublicationJob.scheduled_at < now - OVERDUE_AFTER,
-        PublicationJob.dispatched_at.is_(None),
     )
     overdue = db.scalar(select(func.count()).where(*overdue_filter)) or 0
     oldest = db.scalar(select(func.min(PublicationJob.scheduled_at)).where(*overdue_filter))
     waiting = oldest and now - oldest
+    in_work = jobs.get(JobStatus.UPLOADING, 0) + jobs.get(JobStatus.PROCESSING, 0)
+    last_start = db.scalar(select(func.max(PublicationAttempt.started_at)))
+    stalled = bool(overdue) and not in_work and (last_start is None or now - last_start > STALL_AFTER)
     metrics["queue_overdue_jobs"] = overdue
     metrics["queue_oldest_overdue_seconds"] = waiting.total_seconds() if waiting else 0
+    metrics["queue_stalled"] = int(stalled)
     queued = jobs.get(JobStatus.QUEUED, 0)
-    if overdue:
+    if stalled:
         checks.append(
             Check(
                 "queue",
                 "Очередь",
-                CRITICAL if waiting and waiting > timedelta(minutes=30) else WARNING,
-                f"{overdue} ждут дольше 5 мин",
-                f"Самое старое ждёт {_ago(waiting)}. "
-                "Задания не уходят воркерам — проверьте воркеры и планировщик.",
+                CRITICAL,
+                f"стоит: ждут {overdue}",
+                f"Самое старое задание ждёт {_ago(waiting)}, а загрузки не начинаются. "
+                "Проверьте воркеры и планировщик.",
+            )
+        )
+    elif overdue:
+        checks.append(
+            Check(
+                "queue",
+                "Очередь",
+                OK,
+                f"в очереди: {queued}",
+                f"Загрузки идут, очередь разбирается. Самое старое задание ждёт {_ago(waiting)}.",
             )
         )
     else:
@@ -263,7 +279,6 @@ def collect(db: Session, probes: Probes, now: datetime, settings: Settings | Non
             )
         )
     else:
-        in_work = jobs.get(JobStatus.UPLOADING, 0) + jobs.get(JobStatus.PROCESSING, 0)
         checks.append(Check("stuck", "Зависшие задания", OK, f"нет · в работе: {in_work}"))
 
     # Ответы TikTok API за сутки.

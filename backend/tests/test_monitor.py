@@ -4,7 +4,7 @@ from datetime import timedelta
 
 import pytest
 
-from app import monitor
+from app import monitor, publishing
 from app.config import get_settings
 from app.deps import get_probes
 from app.models import (
@@ -83,17 +83,24 @@ def test_redis_down(db, clock):
     assert by_key["workers"].status == by_key["scheduler"].status == monitor.UNKNOWN
 
 
-def test_overdue_queue(db, fake, tt, clock, admin):
-    account = connect(db, fake, tt, "alpha", clock)
-    confirm(db, admin, make_media(db), [account], clock)
+def test_queue_stalled_versus_busy(db, fake, tt, clock, admin):
+    accounts = [connect(db, fake, tt, n, clock) for n in ("alpha", "bravo")]
+    campaign = confirm(db, admin, make_media(db), accounts, clock)
     probes = FakeProbes()
+    clock.advance(minutes=3)
+    probes.now = clock.now
+    assert checks(monitor.collect(db, probes, clock.now))["queue"].status == monitor.OK
+
+    # Задания ждут, ничего не загружается и загрузки давно не начинались — очередь стоит.
     clock.advance(minutes=10)
     probes.now = clock.now
     queue = checks(monitor.collect(db, probes, clock.now))["queue"]
-    assert queue.status == monitor.WARNING and queue.value.startswith("1 ")
-    clock.advance(minutes=30)
-    probes.now = clock.now
-    assert checks(monitor.collect(db, probes, clock.now))["queue"].status == monitor.CRITICAL
+    assert queue.status == monitor.CRITICAL and queue.value == "стоит: ждут 2"
+
+    # Одна загрузка идёт: длинная очередь — это нормально, она разбирается.
+    publishing.claim_job(db, jobs_of(db, campaign)[0].id, clock.now, 600)
+    queue = checks(monitor.collect(db, probes, clock.now))["queue"]
+    assert queue.status == monitor.OK and "разбирается" in queue.detail
 
 
 def test_publication_errors_and_reauth(db, fake, tt, clock, admin):
