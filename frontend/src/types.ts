@@ -160,10 +160,15 @@ export interface Job {
   last_error_message: string | null;
   retryable: boolean;
   updated_at: string;
+  views: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
 }
 
 export interface CampaignDetail extends CampaignSummary {
   jobs: Job[];
+  stats: { videos: number; views: number; likes: number; comments: number; shares: number } | null;
 }
 
 export interface Attempt {

@@ -178,6 +178,10 @@ class JobOut(ORM):
     last_error_message: str | None
     retryable: bool
     updated_at: datetime
+    views: int | None = None
+    likes: int | None = None
+    comments: int | None = None
+    shares: int | None = None
 
 
 class CampaignSummary(BaseModel):
@@ -196,6 +200,8 @@ class CampaignSummary(BaseModel):
 
 class CampaignDetail(CampaignSummary):
     jobs: list[JobOut]
+    # Суммы по видео со статистикой (Display API); None, если статистики ещё нет.
+    stats: dict[str, int] | None = None
 
 
 class AttemptOut(ORM):

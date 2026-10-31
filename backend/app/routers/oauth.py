@@ -43,7 +43,7 @@ def start(
     request.session["oauth_states"] = dict(
         sorted(pending.items(), key=lambda kv: kv[1]["ts"])[-MAX_PENDING_STATES:]
     )
-    url = tt.authorize_url(settings.oauth_redirect_uri, state, settings.tiktok_scopes)
+    url = tt.authorize_url(settings.oauth_redirect_uri, state, settings.oauth_scopes)
     return RedirectResponse(url, status_code=303)
 
 

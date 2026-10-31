@@ -214,18 +214,33 @@ class TikTokClient:
     def fetch_status(self, access_token: str, publish_id: str) -> dict[str, Any]:
         return self._api(access_token, "/v2/post/publish/status/fetch/", {"publish_id": publish_id})
 
+    # --- Display API: статистика своих видео и аккаунта ---------------------------------
+
+    def user_stats(self, access_token: str) -> dict[str, Any]:
+        """Подписчики, лайки и число видео аккаунта (разрешение user.info.stats)."""
+        fields = "open_id,follower_count,following_count,likes_count,video_count"
+        data = self._api(access_token, f"/v2/user/info/?fields={fields}", None, method="GET")
+        return data.get("user") or {}
+
+    def query_videos(self, access_token: str, video_ids: list[str]) -> list[dict[str, Any]]:
+        """Показатели публичных видео аккаунта, до 20 за запрос (разрешение video.list)."""
+        fields = "id,view_count,like_count,comment_count,share_count"
+        data = self._api(
+            access_token, f"/v2/video/query/?fields={fields}", {"filters": {"video_ids": video_ids[:20]}}
+        )
+        return data.get("videos") or []
+
     # --- транспорт -----------------------------------------------------------------------
 
-    def _api(self, access_token: str, path: str, payload: dict[str, Any]) -> dict[str, Any]:
-        body, status = self._send(
-            "POST",
-            path,
-            json=payload,
-            headers={
-                "Authorization": f"Bearer {access_token}",
-                "Content-Type": "application/json; charset=UTF-8",
-            },
-        )
+    def _api(
+        self, access_token: str, path: str, payload: dict[str, Any] | None, method: str = "POST"
+    ) -> dict[str, Any]:
+        headers = {"Authorization": f"Bearer {access_token}"}
+        kwargs: dict[str, Any] = {"headers": headers}
+        if method == "POST":
+            headers["Content-Type"] = "application/json; charset=UTF-8"
+            kwargs["json"] = payload
+        body, status = self._send(method, path, **kwargs)
         err = body.get("error") or {}
         code = err.get("code") if isinstance(err, dict) else str(err)
         if (code and code != "ok") or status >= 400:

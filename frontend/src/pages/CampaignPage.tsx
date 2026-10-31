@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useSession } from "../App";
 import { Badge, Spinner, StatusBar, useToast } from "../components/ui";
+import { formatNumber } from "../components/charts";
 import {
   CAMPAIGN_STATUS,
   JOB_STATUS,
@@ -104,6 +105,25 @@ export default function CampaignPage() {
         )}
       </header>
 
+      {campaign.stats && (
+        <div className="kpi-row">
+          {(
+            [
+              ["views", "Просмотры"],
+              ["likes", "Лайки"],
+              ["comments", "Комментарии"],
+              ["shares", "Репосты"],
+            ] as const
+          ).map(([key, label]) => (
+            <div className="tile kpi" key={key}>
+              <span className="muted small">{label}</span>
+              <strong className="kpi-value">{formatNumber(campaign.stats![key])}</strong>
+              <span className="muted small">по {campaign.stats!.videos} видео</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="campaign-top">
         <div className="card campaign-media">
           <video src={`/api/media/${campaign.media.id}/file`} preload="metadata" muted controls playsInline />
@@ -164,6 +184,7 @@ export default function CampaignPage() {
               <th>Статус</th>
               <th>Результат</th>
               <th>Попытки</th>
+              {campaign.stats && <th className="num">Просмотры</th>}
               {canWrite && <th className="col-actions" />}
             </tr>
           </thead>
@@ -192,6 +213,11 @@ export default function CampaignPage() {
                       {job.attempt_total} {expanded === job.id ? "▴" : "▾"}
                     </button>
                   </td>
+                  {campaign.stats && (
+                    <td className="small num" data-label="Просмотры" title={job.views === null ? "" : `Лайки: ${job.likes}, комментарии: ${job.comments}, репосты: ${job.shares}`}>
+                      {job.views === null ? "—" : formatNumber(job.views)}
+                    </td>
+                  )}
                   {canWrite && (
                     <td className="col-actions">
                       <JobActions job={job} act={act} />
@@ -200,7 +226,7 @@ export default function CampaignPage() {
                 </tr>
                 {expanded === job.id && (
                   <tr className="row-detail">
-                    <td colSpan={canWrite ? 5 : 4} className="cell-wide">
+                    <td colSpan={(canWrite ? 5 : 4) + (campaign.stats ? 1 : 0)} className="cell-wide">
                       <Attempts jobId={job.id} />
                     </td>
                   </tr>

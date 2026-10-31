@@ -8,6 +8,8 @@ x-emulator-env: &emulator-env
   TIKTOK_AUTH_URL: http://localhost:9000/v2/auth/authorize/
   TIKTOK_API_BASE: http://tiktok-emulator:9000
   PUBLIC_BASE_URL: http://localhost:8000
+  # Эмулятор отдаёт статистику видео и аккаунтов — раздел «Аналитика» можно проверить сразу.
+  TIKTOK_ANALYTICS: "true"
 
 services:
   tiktok-emulator:

@@ -19,6 +19,7 @@ import httpx
 MIN_CHUNK = 5 * 1024 * 1024
 MAX_CHUNK = 64 * 1000 * 1000
 ALL_PRIVACY = ["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"]
+DEFAULT_SCOPES = "user.info.basic,video.publish"
 
 
 @dataclass
@@ -75,9 +76,11 @@ class FakeTikTok:
         self.access_ttl_s = access_ttl_s
         self.clock = clock
         self.creators: dict[str, FakeCreator] = {}
-        self.codes: dict[str, str] = {}
-        self.access_tokens: dict[str, tuple[str, float]] = {}
-        self.refresh_tokens: dict[str, str] = {}
+        self.codes: dict[str, tuple[str, str]] = {}
+        # Токен -> (open_id, истекает, выданные разрешения).
+        self.access_tokens: dict[str, tuple[str, float, str]] = {}
+        self.refresh_tokens: dict[str, tuple[str, str]] = {}
+        self.started = clock()
         self.publishes: dict[str, FakePublish] = {}
         self.posting_creators: dict[str, float] = {}
         self.calls: list[tuple[str, str]] = []
@@ -96,13 +99,13 @@ class FakeTikTok:
         self.creators[open_id] = creator
         return creator
 
-    def issue_code(self, open_id: str) -> str:
+    def issue_code(self, open_id: str, scopes: str = DEFAULT_SCOPES) -> str:
         code = "code-" + secrets.token_urlsafe(8)
-        self.codes[code] = open_id
+        self.codes[code] = (open_id, scopes)
         return code
 
     def expire_access_tokens(self) -> None:
-        self.access_tokens = {k: (v[0], 0.0) for k, v in self.access_tokens.items()}
+        self.access_tokens = {k: (v[0], 0.0, v[2]) for k, v in self.access_tokens.items()}
 
     def fail(self, path: str, *responses: Any) -> None:
         self.faults.setdefault(path, []).extend(responses)
@@ -134,6 +137,10 @@ class FakeTikTok:
                 return self._init(request)
             if path == "/v2/post/publish/status/fetch/":
                 return self._status(request)
+            if path == "/v2/user/info/":
+                return self._user_info(request)
+            if path == "/v2/video/query/":
+                return self._video_query(request)
             m = re.fullmatch(r"/upload/([^/]+)", path)
             if m and request.method == "PUT":
                 return self._upload(request, m.group(1))
@@ -184,7 +191,7 @@ main{{max-width:420px;width:100%}}.note{{background:#3a2a00;color:#ffd27a;paddin
 
     def _authorize_confirm(self, request: httpx.Request) -> httpx.Response:
         q = dict(request.url.params)
-        code = self.issue_code(q["open_id"])
+        code = self.issue_code(q["open_id"], q.get("scope") or DEFAULT_SCOPES)
         location = (
             q["redirect_uri"]
             + "?"
@@ -198,19 +205,20 @@ main{{max-width:420px;width:100%}}.note{{background:#3a2a00;color:#ffd27a;paddin
             return self._oauth_error("invalid_client", "Client key or secret is incorrect")
         grant = form.get("grant_type")
         if grant == "authorization_code":
-            open_id = self.codes.pop(form.get("code", ""), None)
-            if open_id is None:
+            entry = self.codes.pop(form.get("code", ""), None)
+            if entry is None:
                 return self._oauth_error("invalid_grant", "Authorization code is expired")
         elif grant == "refresh_token":
-            open_id = self.refresh_tokens.get(form.get("refresh_token", ""))
-            if open_id is None:
+            entry = self.refresh_tokens.get(form.get("refresh_token", ""))
+            if entry is None:
                 return self._oauth_error("invalid_grant", "Refresh token is invalid or expired")
         else:
             return self._oauth_error("invalid_request", "unsupported grant_type")
+        open_id, scopes = entry
         access = "act." + secrets.token_urlsafe(16)
         refresh = "rft." + secrets.token_urlsafe(16)
-        self.access_tokens[access] = (open_id, self.clock() + self.access_ttl_s)
-        self.refresh_tokens[refresh] = open_id
+        self.access_tokens[access] = (open_id, self.clock() + self.access_ttl_s, scopes)
+        self.refresh_tokens[refresh] = (open_id, scopes)
         return httpx.Response(
             200,
             json={
@@ -219,7 +227,7 @@ main{{max-width:420px;width:100%}}.note{{background:#3a2a00;color:#ffd27a;paddin
                 "open_id": open_id,
                 "refresh_expires_in": 31536000,
                 "refresh_token": refresh,
-                "scope": "user.info.basic,video.publish",
+                "scope": scopes,
                 "token_type": "Bearer",
             },
         )
@@ -232,6 +240,69 @@ main{{max-width:420px;width:100%}}.note{{background:#3a2a00;color:#ffd27a;paddin
         if entry is None or entry[1] <= self.clock():
             return None
         return self.creators.get(entry[0])
+
+    def _scopes(self, request: httpx.Request) -> set[str]:
+        token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+        entry = self.access_tokens.get(token)
+        return set(entry[2].split(",")) if entry else set()
+
+    # --- Display API (статистика) -------------------------------------------------------
+
+    @staticmethod
+    def _seed(value: str) -> int:
+        return sum(ord(c) * (i + 1) for i, c in enumerate(value))
+
+    def video_stats(self, pub: "FakePublish") -> dict[str, int]:
+        """Правдоподобно растущие показатели: зависят от времени после публикации."""
+        minutes = max(0.0, (self.clock() - (pub.completed_at or self.clock())) / 60)
+        seed = self._seed(pub.publish_id)
+        views = 50 + seed % 400 + int(minutes * (3 + seed % 7))
+        return {
+            "view_count": views,
+            "like_count": views * (6 + seed % 5) // 100,
+            "comment_count": views // (90 + seed % 40),
+            "share_count": views // (150 + seed % 60),
+        }
+
+    def creator_stats(self, creator: FakeCreator) -> dict[str, int]:
+        minutes = max(0.0, (self.clock() - self.started) / 60)
+        seed = self._seed(creator.open_id)
+        published = [p for p in self.publishes.values() if p.open_id == creator.open_id and p.completed_at]
+        likes = sum(self.video_stats(p)["like_count"] for p in published if p.post_id)
+        return {
+            "follower_count": 800 + seed % 4000 + int(minutes * (1 + seed % 3)),
+            "following_count": 50 + seed % 200,
+            "likes_count": 1000 + seed % 9000 + likes,
+            "video_count": 12 + seed % 30 + len(published),
+        }
+
+    def _user_info(self, request: httpx.Request) -> httpx.Response:
+        creator = self._auth(request)
+        if creator is None:
+            return self._error(401, "access_token_invalid")
+        fields = set(request.url.params.get("fields", "").split(","))
+        stats_fields = {"follower_count", "following_count", "likes_count", "video_count"}
+        if fields & stats_fields and "user.info.stats" not in self._scopes(request):
+            return self._error(401, "scope_not_authorized")
+        user = {"open_id": creator.open_id, "display_name": creator.nickname, "avatar_url": ""}
+        user.update(self.creator_stats(creator))
+        return self._ok({"user": {k: v for k, v in user.items() if k in fields}})
+
+    def _video_query(self, request: httpx.Request) -> httpx.Response:
+        creator = self._auth(request)
+        if creator is None:
+            return self._error(401, "access_token_invalid")
+        if "video.list" not in self._scopes(request):
+            return self._error(401, "scope_not_authorized")
+        body = httpx.Response(200, content=request.content).json()
+        ids = {str(i) for i in body.get("filters", {}).get("video_ids", [])}
+        if len(ids) > 20:
+            return self._error(400, "invalid_params", "max 20 video_ids")
+        videos = []
+        for pub in self.publishes.values():
+            if pub.open_id == creator.open_id and pub.post_id and str(pub.post_id) in ids:
+                videos.append({"id": str(pub.post_id), **self.video_stats(pub)})
+        return self._ok({"videos": videos, "cursor": 0, "has_more": False})
 
     def _creator_info(self, request: httpx.Request) -> httpx.Response:
         creator = self._auth(request)

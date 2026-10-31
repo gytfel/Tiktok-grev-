@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -238,6 +238,12 @@ class PublicationJob(Base):
     retryable: Mapped[bool] = mapped_column(Boolean, default=False)
     # Когда о проблеме с заданием сообщили уведомлением; сбрасывается при повторе.
     attention_notified_at: Mapped[datetime | None]
+    # Показатели видео из Display API TikTok (есть только у публичных видео с известным id).
+    views: Mapped[int | None] = mapped_column(BigInteger)
+    likes: Mapped[int | None] = mapped_column(BigInteger)
+    comments: Mapped[int | None] = mapped_column(BigInteger)
+    shares: Mapped[int | None] = mapped_column(BigInteger)
+    stats_updated_at: Mapped[datetime | None]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
 
@@ -374,3 +380,36 @@ class Reminder(Base):
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     done_at: Mapped[datetime | None]
     notified_at: Mapped[datetime | None]
+
+
+class CampaignStatsDaily(Base):
+    """Суммарные показатели видео кампании на конец дня (UTC) — для графиков динамики."""
+
+    __tablename__ = "campaign_stats_daily"
+    __table_args__ = (UniqueConstraint("campaign_id", "day"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    campaign_id: Mapped[int] = mapped_column(ForeignKey("campaigns.id", ondelete="CASCADE"), index=True)
+    day: Mapped[date]
+    views: Mapped[int] = mapped_column(BigInteger, default=0)
+    likes: Mapped[int] = mapped_column(BigInteger, default=0)
+    comments: Mapped[int] = mapped_column(BigInteger, default=0)
+    shares: Mapped[int] = mapped_column(BigInteger, default=0)
+    videos: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+
+
+class AccountStatsDaily(Base):
+    """Подписчики, лайки и число видео аккаунта на конец дня (UTC)."""
+
+    __tablename__ = "account_stats_daily"
+    __table_args__ = (UniqueConstraint("account_id", "day"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), index=True)
+    day: Mapped[date]
+    followers: Mapped[int] = mapped_column(BigInteger, default=0)
+    following: Mapped[int] = mapped_column(BigInteger, default=0)
+    likes: Mapped[int] = mapped_column(BigInteger, default=0)
+    videos: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)

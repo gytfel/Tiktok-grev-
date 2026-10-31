@@ -9,7 +9,7 @@ from functools import lru_cache
 
 from celery import Celery
 
-from app import notifications, publishing, push
+from app import analytics, notifications, publishing, push
 from app.accounts_service import check_account
 from app.config import get_settings
 from app.db import get_sessionmaker
@@ -31,6 +31,10 @@ celery_app.conf.update(
         "poll-processing-jobs": {"task": "app.worker.poll_dispatch_task", "schedule": 5.0},
         "recover-stale-jobs": {"task": "app.worker.recover_task", "schedule": 60.0},
         "notify": {"task": "app.worker.notify_task", "schedule": float(settings.notify_interval_s)},
+        "collect-analytics": {
+            "task": "app.worker.analytics_dispatch_task",
+            "schedule": float(settings.analytics_interval_hours * 3600),
+        },
     },
 )
 
@@ -92,3 +96,20 @@ def notify_task() -> int:
         for event, message in messages:
             sent += push.send(db, message, push.subscriptions_for(db, event))
     return sent
+
+
+@celery_app.task
+def analytics_dispatch_task() -> int:
+    if not settings.tiktok_analytics:
+        return 0
+    with get_sessionmaker()() as db:
+        ids = analytics.eligible_account_ids(db)
+    for account_id in ids:
+        collect_analytics_task.delay(account_id)
+    return len(ids)
+
+
+@celery_app.task
+def collect_analytics_task(account_id: int) -> None:
+    with get_sessionmaker()() as db:
+        analytics.collect_account(db, tiktok(), account_id, utcnow())

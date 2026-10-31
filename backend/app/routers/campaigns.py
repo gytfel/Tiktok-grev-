@@ -148,10 +148,26 @@ def get_campaign(campaign_id: int, db: Session = Depends(get_db), _: User = Depe
             last_error_message=j.last_error_message,
             retryable=j.retryable,
             updated_at=j.updated_at,
+            views=j.views,
+            likes=j.likes,
+            comments=j.comments,
+            shares=j.shares,
         )
         for j in jobs
     ]
-    return {**_summary(campaign, _counts(db, [campaign.id])[campaign.id]), "jobs": job_out}
+    with_stats = [j for j in job_out if j.views is not None]
+    stats = (
+        {
+            "videos": len(with_stats),
+            **{
+                m: sum(getattr(j, m) or 0 for j in with_stats)
+                for m in ("views", "likes", "comments", "shares")
+            },
+        }
+        if with_stats
+        else None
+    )
+    return {**_summary(campaign, _counts(db, [campaign.id])[campaign.id]), "jobs": job_out, "stats": stats}
 
 
 @router.post("/campaigns/{campaign_id}/cancel")

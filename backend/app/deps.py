@@ -67,5 +67,16 @@ def _enqueue_account_checks(account_ids: list[int]) -> None:
         check_account_task.delay(account_id)
 
 
+def _enqueue_analytics(account_ids: list[int]) -> None:
+    from app.worker import collect_analytics_task
+
+    for account_id in account_ids:
+        collect_analytics_task.delay(account_id)
+
+
+def get_analytics_enqueuer() -> Callable[[list[int]], None]:
+    return _enqueue_analytics
+
+
 def get_account_check_enqueuer() -> Callable[[list[int]], None]:
     return _enqueue_account_checks

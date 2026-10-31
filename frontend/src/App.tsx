@@ -18,6 +18,7 @@ import CommentsPage from "./pages/CommentsPage";
 import RemindersPage from "./pages/RemindersPage";
 import SecurityPage from "./pages/SecurityPage";
 import CalendarPage from "./pages/CalendarPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
 import { setZone } from "./time";
 
 interface Session {
@@ -59,6 +60,7 @@ function Shell({ session }: { session: Session }) {
           </NavLink>
           {session.canWrite && <NavLink to="/campaigns/new">Новая кампания</NavLink>}
           <NavLink to="/calendar">Календарь</NavLink>
+          <NavLink to="/analytics">Аналитика</NavLink>
           <NavLink to="/accounts">Аккаунты</NavLink>
           <NavLink to="/media">Видео</NavLink>
           <NavLink to="/templates">Шаблоны</NavLink>
@@ -99,6 +101,7 @@ function Shell({ session }: { session: Session }) {
           <Route path="/audit" element={<AuditPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/templates" element={<TemplatesPage />} />
           <Route path="/comments" element={<CommentsPage />} />
           <Route path="/reminders" element={<RemindersPage />} />
@@ -135,6 +138,7 @@ function Shell({ session }: { session: Session }) {
         <div className="sheet-backdrop" onClick={() => setMoreOpen(false)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()} role="menu">
             {session.canWrite && <NavLink to="/campaigns/new">Новая кампания</NavLink>}
+            <NavLink to="/analytics">Аналитика</NavLink>
             <NavLink to="/notifications">Уведомления</NavLink>
             <NavLink to="/comments">Ответы на комментарии</NavLink>
             <NavLink to="/reminders">Напоминания</NavLink>

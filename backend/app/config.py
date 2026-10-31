@@ -2,6 +2,8 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+ANALYTICS_SCOPES = ("user.info.stats", "video.list")
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -26,6 +28,10 @@ class Settings(BaseSettings):
     tiktok_auth_url: str = "https://www.tiktok.com/v2/auth/authorize/"
     tiktok_api_base: str = "https://open.tiktokapis.com"
     tiktok_scopes: str = "user.info.basic,video.publish"
+    # Аналитика через Display API: нужны продукт Display API в приложении TikTok и разрешения
+    # user.info.stats и video.list. После включения аккаунты нужно переподключить.
+    tiktok_analytics: bool = False
+    analytics_interval_hours: float = 6
     # Включается только вместе с эмулятором TikTok из docker-compose (профиль dev).
     tiktok_emulator: bool = False
 
@@ -57,6 +63,13 @@ class Settings(BaseSettings):
     @property
     def oauth_redirect_uri(self) -> str:
         return self.public_base_url.rstrip("/") + "/api/oauth/tiktok/callback"
+
+    @property
+    def oauth_scopes(self) -> str:
+        scopes = [s.strip() for s in self.tiktok_scopes.split(",") if s.strip()]
+        if self.tiktok_analytics:
+            scopes += [s for s in ANALYTICS_SCOPES if s not in scopes]
+        return ",".join(scopes)
 
     @property
     def ai_configured(self) -> bool:
