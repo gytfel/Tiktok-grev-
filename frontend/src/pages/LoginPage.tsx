@@ -38,60 +38,71 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
 
   return (
     <div className="center-screen">
-      <form className="card login" onSubmit={submit}>
-        <h1>Очередь публикаций</h1>
-        {needCode ? (
-          <>
-            <p className="muted">Введите 6-значный код из приложения-аутентификатора.</p>
-            <label className="field">
-              <span>Код</span>
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                autoFocus
-                required
-              />
-            </label>
-          </>
-        ) : (
-          <>
-            <p className="muted">Войдите, чтобы управлять аккаунтами и кампаниями.</p>
-            <label className="field">
-              <span>Логин</span>
-              <input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" required />
-            </label>
-            <label className="field">
-              <span>Пароль</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </label>
-          </>
-        )}
-        {error && <div className="alert alert-danger">{error}</div>}
-        <button className="btn btn-primary" disabled={busy}>
-          {busy ? "Проверка…" : needCode ? "Подтвердить" : "Войти"}
-        </button>
-        {needCode && (
-          <button
-            type="button"
-            className="link-btn"
-            onClick={() => {
-              setNeedCode(false);
-              setCode("");
-              setError(null);
-            }}
-          >
-            Войти под другим пользователем
+      <div>
+        <form className="card login" onSubmit={submit}>
+          <h1>Очередь публикаций</h1>
+          {needCode ? (
+            <>
+              <p className="muted">Введите 6-значный код из приложения-аутентификатора.</p>
+              <label className="field">
+                <span>Код</span>
+                <input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  required
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <p className="muted">Войдите, чтобы управлять аккаунтами и кампаниями.</p>
+              <label className="field">
+                <span>Логин</span>
+                <input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="username"
+                  required
+                />
+              </label>
+              <label className="field">
+                <span>Пароль</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  required
+                />
+              </label>
+            </>
+          )}
+          {error && <div className="alert alert-danger">{error}</div>}
+          <button className="btn btn-primary" disabled={busy}>
+            {busy ? "Проверка…" : needCode ? "Подтвердить" : "Войти"}
           </button>
-        )}
-      </form>
+          {needCode && (
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => {
+                setNeedCode(false);
+                setCode("");
+                setError(null);
+              }}
+            >
+              Войти под другим пользователем
+            </button>
+          )}
+        </form>
+        <nav className="legal-links small">
+          <a href="/terms?lang=ru">Условия использования</a>
+          <a href="/privacy?lang=ru">Политика конфиденциальности</a>
+        </nav>
+      </div>
     </div>
   );
 }

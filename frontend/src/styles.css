@@ -239,6 +239,16 @@ textarea {
   flex-direction: column;
   gap: 12px;
 }
+.legal-links {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.legal-links a {
+  color: var(--muted);
+}
 .login h1 {
   margin: 0;
 }

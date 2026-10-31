@@ -67,6 +67,15 @@ class Settings(BaseSettings):
     backup_interval_hours: float = 24
     # Токен для /api/metrics (Prometheus). Пусто — адрес выключен.
     metrics_token: str = ""
+    backup_keep: int = 14
+
+    # Открытые страницы /terms и /privacy — их адреса указываются в приложении TikTok.
+    legal_app_name: str = "Queue of Publications"
+    legal_owner: str = ""
+    legal_email: str = ""
+    legal_country: str = ""
+    # Страна по-русски для русской версии страниц; по умолчанию — как LEGAL_COUNTRY.
+    legal_country_ru: str = ""
 
     @property
     def oauth_redirect_uri(self) -> str:

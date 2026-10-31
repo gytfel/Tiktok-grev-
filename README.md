@@ -91,7 +91,12 @@ docker compose -f docker-compose.yml -f docker-compose.emulator.yml up --build
 1. На [developers.tiktok.com](https://developers.tiktok.com) создайте приложение и добавьте
    продукты **Login Kit** и **Content Posting API** с включённым **Direct Post**.
    Нужны разрешения `user.info.basic` и `video.publish`.
-2. Укажите Redirect URI: `https://<ваш-адрес>/api/oauth/tiktok/callback`.
+2. Укажите Redirect URI: `https://<ваш-адрес>/api/oauth/tiktok/callback`, а в полях условий
+   использования и политики конфиденциальности — `https://<ваш-адрес>/terms` и `https://<ваш-адрес>/privacy`.
+   Панель показывает эти страницы без входа, на английском и русском (`?lang=ru`). Чтобы они открылись,
+   заполните в `.env` `LEGAL_OWNER`, `LEGAL_EMAIL` и `LEGAL_COUNTRY` (по желанию `LEGAL_COUNTRY_RU` и
+   `LEGAL_APP_NAME` — название, как в TikTok). Тексты описывают, что панель реально делает с данными;
+   если у вас компания, покажите их юристу.
 3. В `.env`:
    ```
    PUBLIC_BASE_URL=https://<ваш-адрес>

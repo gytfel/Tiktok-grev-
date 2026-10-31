@@ -22,6 +22,7 @@ from app.routers import (
     calendar,
     campaigns,
     comments,
+    legal,
     media,
     oauth,
     push,
@@ -88,6 +89,7 @@ def create_app() -> FastAPI:
         calendar,
         analytics,
         system,
+        legal,
     )
     for module in routers:
         app.include_router(module.router)
