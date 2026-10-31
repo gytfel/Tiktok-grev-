@@ -1,3 +1,5 @@
+import os
+import threading
 from datetime import timedelta
 
 import pytest
@@ -5,6 +7,7 @@ from sqlalchemy import select
 
 from app import publishing
 from app.accounts_service import check_account
+from app.db import get_sessionmaker
 from app.models import (
     AccountStatus,
     AccountToken,
@@ -323,6 +326,50 @@ def test_recover_stale_jobs(db, fake, tt, settings, clock, admin):
     db.expire_all()
     assert db.get(PublicationJob, j1.id).status == JobStatus.QUEUED
     assert db.get(PublicationJob, j2.id).status == JobStatus.PROCESSING
+
+
+def test_recover_completes_campaign_left_running(db, fake, tt, settings, clock, admin):
+    account = connect(db, fake, tt, "alpha", clock)
+    campaign = confirm(db, admin, make_media(db), [account], clock)
+    drive(db, tt, settings, clock, rounds=3)
+    # Так выглядела гонка двух воркеров: все задания завершены, а статус остался прежним.
+    db.get(Campaign, campaign.id).status = CampaignStatus.RUNNING
+    db.commit()
+    publishing.recover_stale_jobs(db, clock.now)
+    db.expire_all()
+    assert db.get(Campaign, campaign.id).status == CampaignStatus.COMPLETED
+
+
+@pytest.mark.skipif(
+    not os.environ.get("TEST_DATABASE_URL", "").startswith("postgresql"),
+    reason="блокировки строк проверяются только на PostgreSQL",
+)
+def test_concurrent_job_completion_finishes_campaign(db, fake, tt, clock, admin):
+    a, b = (connect(db, fake, tt, n, clock) for n in ("alpha", "bravo"))
+    campaign = confirm(db, admin, make_media(db), [a, b], clock)
+    j1, j2 = (j.id for j in jobs_of(db, campaign))
+    sessions = get_sessionmaker()
+
+    def finish(session, job_id):
+        session.get(PublicationJob, job_id).status = JobStatus.PUBLISHED
+        publishing.refresh_campaign_status(session, campaign.id)
+
+    with sessions() as first:
+        finish(first, j1)  # видит второе задание незавершённым и держит строку кампании
+        second = threading.Thread(target=lambda: _finish_and_commit(sessions, finish, j2))
+        second.start()
+        threading.Event().wait(0.5)  # time.sleep в тестах подменён
+        assert second.is_alive(), "второй пересчёт должен ждать коммита первого"
+        first.commit()
+    second.join(10)
+    db.expire_all()
+    assert db.get(Campaign, campaign.id).status == CampaignStatus.COMPLETED
+
+
+def _finish_and_commit(sessions, finish, job_id):
+    with sessions() as session:
+        finish(session, job_id)
+        session.commit()
 
 
 def test_cancel_campaign_stops_queued_jobs(db, fake, tt, settings, clock, admin):

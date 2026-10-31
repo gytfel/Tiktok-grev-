@@ -244,7 +244,11 @@ def confirm_campaign(db: Session, data: CampaignConfirm, user: User, now: dateti
 
 
 def refresh_campaign_status(db: Session, campaign_id: int) -> None:
-    campaign = db.get(Campaign, campaign_id)
+    # Блокировка строки кампании: когда два задания одной кампании завершаются одновременно,
+    # второй пересчёт ждёт коммита первого и видит оба итоговых статуса. Без неё каждый видел бы
+    # другое задание незавершённым, и кампания навсегда оставалась бы «выполняется».
+    # of=Campaign: связанные таблицы подгружаются внешним JOIN, а их блокировать нельзя и не нужно.
+    campaign = db.get(Campaign, campaign_id, with_for_update={"of": Campaign})
     if campaign.status == CampaignStatus.CANCELLED:
         return
     pending = db.scalar(
@@ -398,6 +402,14 @@ def recover_stale_jobs(db: Session, now: datetime) -> int:
             job.scheduled_at = now
             job.dispatched_at = None
             job.lease_until = None
+    # Страховка: кампания без незавершённых заданий — завершена (например, после сбоя воркера).
+    pending = select(PublicationJob.id).where(
+        PublicationJob.campaign_id == Campaign.id, PublicationJob.status.in_(JobStatus.PENDING)
+    )
+    for campaign_id in db.scalars(
+        select(Campaign.id).where(Campaign.status == CampaignStatus.RUNNING, ~pending.exists())
+    ).all():
+        refresh_campaign_status(db, campaign_id)
     db.commit()
     return len(jobs)
 
