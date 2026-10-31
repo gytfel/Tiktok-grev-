@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Очередь публикаций</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --surface: #ffffff;
+        --border: #e3e6eb;
+        --text: #171a1f;
+        --muted: #667085;
+        --accent: #4f46e5;
+        --accent-hover: #4338ca;
+        --danger: #c4320a;
+        --danger-soft: #fdeae5;
+        --warning: #a15c07;
+        --warning-soft: #fdf1dc;
+        color-scheme: light dark;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111317;
+          --surface: #181b20;
+          --border: #2a2f37;
+          --text: #e8eaed;
+          --muted: #9aa3b2;
+          --accent: #8b85ff;
+          --accent-hover: #a29dff;
+          --danger: #ff8a65;
+          --danger-soft: #3a1f17;
+          --warning: #f5b65b;
+          --warning-soft: #3a2a12;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px 16px;
+        background: var(--bg);
+        color: var(--text);
+        font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+      }
+      main {
+        width: 100%;
+        max-width: 460px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 28px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .brand img {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 20px;
+      }
+      p {
+        margin: 0 0 16px;
+        color: var(--muted);
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+      input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+      }
+      input:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      .hint {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 6px 0 16px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      button {
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .primary {
+        background: var(--accent);
+        color: #fff;
+      }
+      .primary:hover {
+        background: var(--accent-hover);
+      }
+      .secondary {
+        background: transparent;
+        color: var(--text);
+        border-color: var(--border);
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .message {
+        margin-top: 16px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+      .error {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      .warning {
+        background: var(--warning-soft);
+        color: var(--warning);
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand">
+        <img src="icon.png" alt="" />
+        <h1>Очередь публикаций</h1>
+      </div>
+      <p>Укажите адрес вашей панели — тот же, который вы открываете в браузере.</p>
+      <form id="form" novalidate>
+        <label for="url">Адрес сервера</label>
+        <input id="url" type="url" inputmode="url" autocomplete="url" placeholder="https://panel.example.com" autofocus />
+        <div class="hint">Адрес запомнится: при следующем запуске панель откроется сразу. Сменить его можно в меню «Панель».</div>
+        <div class="row">
+          <button class="primary" id="submit" type="submit">Подключиться</button>
+          <button class="secondary" id="anyway" type="button" hidden>Всё равно открыть</button>
+        </div>
+      </form>
+      <div id="message" class="message" role="alert" hidden></div>
+    </main>
+    <script>
+      const invoke = window.__TAURI__.core.invoke;
+      const form = document.getElementById("form");
+      const input = document.getElementById("url");
+      const submit = document.getElementById("submit");
+      const anyway = document.getElementById("anyway");
+      const message = document.getElementById("message");
+
+      function show(text, kind) {
+        message.textContent = text;
+        message.className = `message ${kind}`;
+        message.hidden = !text;
+      }
+
+      function normalize(value) {
+        const text = value.trim();
+        return /^[a-z]+:\/\//i.test(text) ? text : `https://${text}`;
+      }
+
+      // Сервер не отдаёт CORS-заголовки, поэтому ответ «непрозрачный» — но сетевую ошибку видно.
+      async function reachable(base) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
+        try {
+          await fetch(new URL("/api/health", base), { mode: "no-cors", cache: "no-store", signal: controller.signal });
+          return true;
+        } catch {
+          return false;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+
+      async function connect(check) {
+        show("", "");
+        anyway.hidden = true;
+        if (!input.value.trim()) {
+          show("Укажите адрес панели.", "error");
+          return;
+        }
+        const url = normalize(input.value);
+        submit.disabled = true;
+        submit.textContent = "Проверяем…";
+        try {
+          if (check && !(await reachable(url))) {
+            show(
+              "Сервер не отвечает. Проверьте адрес и подключение к интернету. Если панель открывается в браузере, попробуйте «Всё равно открыть».",
+              "warning",
+            );
+            anyway.hidden = false;
+            return;
+          }
+          await invoke("connect", { url });
+        } catch (e) {
+          show(String(e), "error");
+        } finally {
+          submit.disabled = false;
+          submit.textContent = "Подключиться";
+        }
+      }
+
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        connect(true);
+      });
+      anyway.addEventListener("click", () => connect(false));
+      invoke("get_server").then((saved) => {
+        if (saved) input.value = saved;
+      });
+    </script>
+  </body>
+</html>
