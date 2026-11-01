@@ -1,7 +1,7 @@
 # Проверка приложения в TikTok: памятка
 
 Что заполнить в приложении на developers.tiktok.com, как записать демонстрационное видео и в каком порядке
-отправить приложение на проверку. Адрес панели в примерах — `myqueue1.duckdns.org`.
+отправить приложение на проверку. Адрес панели в примерах — `myqueue2.duckdns.org`.
 
 ## 1. Основная информация
 
@@ -11,16 +11,16 @@
 | Значок | 1024×1024 PNG — значок панели |
 | Название | `Queue of Publications` |
 | Описание | `Schedule and publish your videos to your own TikTok accounts with captions, privacy settings and post status tracking.` |
-| Условия использования | `https://myqueue1.duckdns.org/terms` |
-| Политика конфиденциальности | `https://myqueue1.duckdns.org/privacy` |
+| Условия использования | `https://myqueue2.duckdns.org/terms` |
+| Политика конфиденциальности | `https://myqueue2.duckdns.org/privacy` |
 | Платформы | только «Веб» |
-| URL веб-версии | `https://myqueue1.duckdns.org` |
+| URL веб-версии | `https://myqueue2.duckdns.org` |
 
 Домен подтверждён TXT-записью в DuckDNS. Не удаляйте и не меняйте её: TikTok может проверить снова.
 
 ## 2. Продукты и разрешения
 
-- **Login Kit**, Redirect URI: `https://myqueue1.duckdns.org/api/oauth/tiktok/callback`, разрешение `user.info.basic`.
+- **Login Kit**, Redirect URI: `https://myqueue2.duckdns.org/api/oauth/tiktok/callback`, разрешение `user.info.basic`.
 - **Content Posting API** с включённым **Direct Post**, разрешение `video.publish`.
 
 Ничего лишнего: каждый добавленный продукт нужно показать в видео. Display API (аналитику) лучше добавить
@@ -41,10 +41,10 @@
 
 ## 4. Сценарий демонстрационного видео
 
-Записывайте в обычном браузере: в адресной строке должен быть виден `myqueue1.duckdns.org`. Приложение для
+Записывайте в обычном браузере: в адресной строке должен быть виден `myqueue2.duckdns.org`. Приложение для
 Windows не подойдёт — в нём адреса не видно.
 
-1. **Вход.** Откройте `https://myqueue1.duckdns.org`, покажите ссылки на условия и политику внизу, войдите.
+1. **Вход.** Откройте `https://myqueue2.duckdns.org`, покажите ссылки на условия и политику внизу, войдите.
 2. **Login Kit.** «Аккаунты» → «Подключить аккаунт TikTok» → страница TikTok с названием приложения и
    запрашиваемыми разрешениями → «Разрешить» → аккаунт появился в списке с аватаром и именем.
 3. **Видео.** «Видео» → загрузите ролик → дождитесь «Подходит для TikTok».
