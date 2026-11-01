@@ -77,6 +77,8 @@ set_env DOMAIN "$DOMAIN"
 set_env PUBLIC_BASE_URL "https://$DOMAIN"
 set_env SESSION_HTTPS_ONLY true
 set_env APP_BIND 127.0.0.1
+# Чтобы короткие команды (docker compose ps, logs caddy, restart) видели и HTTPS-часть.
+set_env COMPOSE_FILE docker-compose.yml:docker-compose.https.yml
 
 ask TIKTOK_CLIENT_KEY "TikTok Client key (можно оставить пустым и добавить позже)"
 ask TIKTOK_CLIENT_SECRET "TikTok Client secret" "" secret
