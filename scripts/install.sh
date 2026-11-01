@@ -52,12 +52,11 @@ ask() {
     current="${!key:-$(get_env "$key")}"
     current="${current:-$default}"
     if [ -t 0 ] && [ -z "${!key:-}" ]; then
-        if [ -n "$secret" ] && [ -n "$current" ]; then
-            read -r -s -p "$prompt [оставить текущий]: " answer
+        if [ -n "$secret" ]; then
+            # Секрет не отображается при вводе — подтверждаем, что вставка сработала.
+            read -r -s -p "$prompt${current:+ [Enter — оставить текущий]} (вставьте и нажмите Enter, символы не видны): " answer
             echo
-        elif [ -n "$secret" ]; then
-            read -r -s -p "$prompt: " answer
-            echo
+            [ -z "$answer" ] || echo "  принято, символов: ${#answer}"
         else
             read -r -p "$prompt${current:+ [$current]}: " answer
         fi
