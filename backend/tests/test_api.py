@@ -1,7 +1,7 @@
 import httpx
-from sqlalchemy import select
+from sqlalchemy import func, select
 
-from app.models import Account, AccountStatus, AuditEvent, Role, User
+from app.models import Account, AccountStatus, AuditEvent, JobStatus, PublicationJob, Role, User
 from app.security import hash_password
 
 
@@ -191,6 +191,49 @@ def test_account_with_pending_jobs_cannot_be_deleted(admin_client, fake, sample_
         "/api/campaigns", json={**draft, "snapshot_hash": preview["snapshot_hash"], "consent": True}
     )
     assert admin_client.delete(f"/api/accounts/{account['id']}").status_code == 409
+
+
+def test_delete_campaign(admin_client, fake, sample_video, db):
+    oauth_connect(admin_client, fake, "alpha")
+    account = admin_client.get("/api/accounts").json()[0]
+    media = admin_client.post(
+        "/api/media", files={"file": ("clip.mp4", sample_video.read_bytes(), "video/mp4")}
+    ).json()
+    draft = {
+        "media_asset_id": media["id"],
+        "title": "Старая кампания",
+        "account_ids": [account["id"]],
+        "settings": {"privacy_level": "SELF_ONLY"},
+    }
+    preview = admin_client.post("/api/campaigns/preview", json=draft).json()
+    campaign = admin_client.post(
+        "/api/campaigns", json={**draft, "snapshot_hash": preview["snapshot_hash"], "consent": True}
+    ).json()
+
+    # Пока видео загружается в TikTok, удалять нельзя.
+    job = db.scalar(select(PublicationJob).where(PublicationJob.campaign_id == campaign["id"]))
+    job.status = JobStatus.UPLOADING
+    db.commit()
+    r = admin_client.delete(f"/api/campaigns/{campaign['id']}")
+    assert r.status_code == 409 and "загрузка" in r.json()["detail"]
+
+    job.status = JobStatus.PUBLISHED
+    db.commit()
+    assert admin_client.delete(f"/api/campaigns/{campaign['id']}").status_code == 200
+    assert admin_client.get(f"/api/campaigns/{campaign['id']}").status_code == 404
+    db.expire_all()
+    assert db.scalar(select(func.count()).select_from(PublicationJob)) == 0
+    deleted = db.scalar(select(AuditEvent).where(AuditEvent.action == "campaign.deleted"))
+    assert deleted.details == {"title": "Старая кампания", "jobs": {"published": 1}}
+    # Видео больше ни в одной кампании — его можно удалить из медиатеки.
+    assert admin_client.delete(f"/api/media/{media['id']}").status_code == 200
+
+
+def test_viewer_cannot_delete_campaign(client, db):
+    db.add(User(username="viewer", password_hash=hash_password("viewer-password"), role=Role.VIEWER))
+    db.commit()
+    client.post("/api/auth/login", json={"username": "viewer", "password": "viewer-password"})
+    assert client.delete("/api/campaigns/1").status_code == 403
 
 
 def test_users_admin_only(admin_client):

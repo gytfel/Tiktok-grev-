@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useSession } from "../App";
 import { Badge, Spinner, StatusBar, useToast } from "../components/ui";
@@ -20,6 +20,7 @@ export default function CampaignPage() {
   const { id } = useParams();
   const { canWrite } = useSession();
   const toast = useToast();
+  const navigate = useNavigate();
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
   const [filter, setFilter] = useState<JobStatus | "all" | "attention">("all");
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -48,6 +49,22 @@ export default function CampaignPage() {
     return campaign.jobs.filter((j) => j.status === filter);
   }, [campaign, filter]);
 
+  async function remove() {
+    if (!campaign) return;
+    const ok = confirm(
+      `Удалить кампанию «${campaign.title}» из панели вместе с заданиями и статистикой?\n\n` +
+        "Опубликованные видео останутся в TikTok — удалить их можно только в самом TikTok.",
+    );
+    if (!ok) return;
+    try {
+      await api.del(`/api/campaigns/${campaign.id}`);
+      toast("Кампания удалена", "success");
+      navigate("/campaigns");
+    } catch (e) {
+      toast((e as ApiError).message, "danger");
+    }
+  }
+
   async function act(path: string, body?: unknown, success?: string) {
     try {
       const result = await api.post<{ retried?: number; cancelled?: number }>(path, body);
@@ -63,6 +80,7 @@ export default function CampaignPage() {
   const attention = (campaign.counts.failed ?? 0) + (campaign.counts.needs_reauth ?? 0) + (campaign.counts.needs_review ?? 0);
   const retryable = campaign.jobs.filter((j) => (j.status === "failed" && j.retryable) || j.status === "needs_reauth").length;
   const queued = campaign.counts.queued ?? 0;
+  const uploading = (campaign.counts.uploading ?? 0) + (campaign.counts.processing ?? 0);
   const interactions = [s.allow_comment && "комментарии", s.allow_duet && "Duet", s.allow_stitch && "Stitch"].filter(Boolean);
 
   return (
@@ -101,6 +119,14 @@ export default function CampaignPage() {
                 Отменить оставшиеся
               </button>
             )}
+            <button
+              className="btn btn-danger-ghost"
+              onClick={remove}
+              disabled={uploading > 0}
+              title={uploading > 0 ? "Идёт загрузка в TikTok — удалить можно после её завершения" : undefined}
+            >
+              Удалить
+            </button>
           </div>
         )}
       </header>

@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import audit
 from app.db import get_db
 from app.deps import current_user, require_writer
 from app.models import (
@@ -176,6 +177,29 @@ def cancel(campaign_id: int, db: Session = Depends(get_db), user: User = Depends
     cancelled = cancel_campaign(db, campaign, user)
     db.commit()
     return {"ok": True, "cancelled": cancelled}
+
+
+@router.delete("/campaigns/{campaign_id}")
+def delete(campaign_id: int, db: Session = Depends(get_db), user: User = Depends(require_writer)):
+    """Удаляет кампанию из панели вместе с заданиями и статистикой. Видео в TikTok остаются."""
+    campaign = _get_campaign(db, campaign_id)
+    # Блокировка заданий: воркер не возьмёт задание в работу, пока идёт удаление.
+    jobs = db.scalars(
+        select(PublicationJob)
+        .where(PublicationJob.campaign_id == campaign.id)
+        .with_for_update(of=PublicationJob)
+    ).all()
+    counts: dict[str, int] = {}
+    for job in jobs:
+        counts[job.status] = counts.get(job.status, 0) + 1
+    if any(job.status in JobStatus.ACTIVE for job in jobs):
+        raise HTTPException(409, "Идёт загрузка в TikTok — удалить кампанию можно после её завершения")
+    audit.record(
+        db, user, "campaign.deleted", "campaign", campaign.id, {"title": campaign.title, "jobs": counts}
+    )
+    db.delete(campaign)
+    db.commit()
+    return {"ok": True}
 
 
 @router.post("/campaigns/{campaign_id}/retry-failed")

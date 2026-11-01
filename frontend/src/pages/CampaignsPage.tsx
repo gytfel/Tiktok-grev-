@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../api";
+import { api, ApiError } from "../api";
 import { useSession } from "../App";
 import { Badge, Empty, Spinner, StatusBar, useToast } from "../components/ui";
 import { CAMPAIGN_STATUS, PRIVACY_LABELS, formatDateTime } from "../format";
@@ -10,6 +10,21 @@ export default function CampaignsPage() {
   const { canWrite } = useSession();
   const toast = useToast();
   const [items, setItems] = useState<CampaignSummary[] | null>(null);
+
+  async function remove(c: CampaignSummary) {
+    const ok = confirm(
+      `Удалить кампанию «${c.title}» из панели вместе с заданиями и статистикой?\n\n` +
+        "Опубликованные видео останутся в TikTok — удалить их можно только в самом TikTok.",
+    );
+    if (!ok) return;
+    try {
+      await api.del(`/api/campaigns/${c.id}`);
+      setItems((list) => list?.filter((x) => x.id !== c.id) ?? null);
+      toast("Кампания удалена", "success");
+    } catch (e) {
+      toast((e as ApiError).message, "danger");
+    }
+  }
 
   useEffect(() => {
     let alive = true;
@@ -54,6 +69,7 @@ export default function CampaignsPage() {
                 <th className="col-progress">Прогресс</th>
                 <th>Видимость</th>
                 <th>Подтверждена</th>
+                {canWrite && <th className="col-actions" />}
               </tr>
             </thead>
             <tbody>
@@ -83,6 +99,15 @@ export default function CampaignsPage() {
                       {formatDateTime(c.confirmed_at)}
                       <div>{c.confirmed_by ?? "—"}</div>
                     </td>
+                    {canWrite && (
+                      <td className="col-actions">
+                        {!(c.counts.uploading || c.counts.processing) && (
+                          <button className="link-btn small text-danger" onClick={() => remove(c)}>
+                            Удалить
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}

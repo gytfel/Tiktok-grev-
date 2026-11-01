@@ -70,6 +70,7 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   "media.deleted": "Удалено видео",
   "campaign.confirmed": "Кампания подтверждена и запущена",
   "campaign.cancelled": "Кампания отменена",
+  "campaign.deleted": "Кампания удалена",
   "job.retried": "Повтор задания",
   "job.cancelled": "Задание отменено",
   "job.resolved": "Результат задания отмечен вручную",
