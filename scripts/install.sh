@@ -107,30 +107,30 @@ fi
 
 GEMINI_URL="${GEMINI_URL:-https://generativelanguage.googleapis.com/v1beta/openai}"
 
-# Быстрая актуальная модель Gemini из списка моделей Google (JSON на входе): названия меняются,
-# поэтому список берётся при установке.
-pick_gemini_model() {
+# Модели Gemini в порядке предпочтения (на входе — JSON списка моделей Google). Названия меняются,
+# поэтому список берётся при установке. Сначала облегчённые: на бесплатном тарифе основные модели
+# бывают перегружены и отвечают минутами, а облегчённые — за секунды.
+gemini_candidates() {
     python3 -c '
 import json, re, sys
 try:
     ids = [m["id"].removeprefix("models/") for m in json.load(sys.stdin).get("data", [])]
 except Exception:
     sys.exit(0)
-skip = re.compile(r"lite|preview|exp|thinking|image|tts|audio|live|embed|8b|vision|learnlm")
+skip = re.compile(r"preview|exp|thinking|image|tts|audio|live|embed|8b|vision|learnlm|omni")
 flash = [i for i in ids if "flash" in i and not skip.search(i)]
-if "gemini-flash-latest" in flash:
-    print("gemini-flash-latest")
-elif flash:
-    version = lambda i: float((re.search(r"gemini-(\d+(?:\.\d+)?)", i) or [0, 0])[1])
-    print(sorted(flash, key=lambda i: (-version(i), len(i)))[0])
+version = lambda i: float((re.search(r"gemini-(\d+(?:\.\d+)?)", i) or [0, 0])[1])
+first = [i for i in ("gemini-flash-lite-latest", "gemini-flash-latest") if i in flash]
+rest = sorted((i for i in flash if i not in first), key=lambda i: ("lite" not in i, -version(i), len(i)))
+print("\n".join((first + rest)[:6]))
 ' 2>/dev/null || true
 }
 
-# Короткий запрос: ключ рабочий и модель отвечает. Печатает HTTP-код и текст ошибки.
+# Короткий запрос: модель отвечает быстро. Печатает HTTP-код (000 — нет ответа) и текст ошибки.
 check_gemini() {
     local response code
     response=$(mktemp)
-    code=$(curl -sS --max-time 30 -o "$response" -w '%{http_code}' \
+    code=$(curl -sS --max-time 20 -o "$response" -w '%{http_code}' \
         -H "Authorization: Bearer $1" -H "Content-Type: application/json" \
         -d "{\"model\": \"$2\", \"messages\": [{\"role\": \"user\", \"content\": \"Ответь одним словом: готово\"}]}" \
         "$GEMINI_URL/chat/completions" 2>/dev/null || true)
@@ -155,37 +155,47 @@ if [ -z "$AI_BASE" ] || [ "$AI_BASE" = "$GEMINI_URL" ]; then
     else
         set_env AI_BASE_URL "$GEMINI_URL"
         MODEL=$(get_env AI_MODEL)
-        if [ -z "$MODEL" ]; then
+        CODE=""
+        # Уже выбранная модель остаётся, если отвечает быстро; иначе подбирается другая.
+        if [ -n "$MODEL" ]; then
+            read -r CODE DETAILS <<<"$(check_gemini "$AI_KEY" "$MODEL")"
+        fi
+        if [ "$CODE" != 200 ] && [ "$CODE" != 429 ]; then
             MODELS_FILE=$(mktemp)
             MODELS_CODE=$(curl -sS --max-time 15 -o "$MODELS_FILE" -w '%{http_code}' \
                 -H "Authorization: Bearer $AI_KEY" "$GEMINI_URL/models" 2>/dev/null || true)
             case "$MODELS_CODE" in
-                200) MODEL=$(pick_gemini_model <"$MODELS_FILE") ;;
+                200)
+                    for CANDIDATE in $(gemini_candidates <"$MODELS_FILE"); do
+                        echo "Проверка модели $CANDIDATE…"
+                        read -r CODE DETAILS <<<"$(check_gemini "$AI_KEY" "$CANDIDATE")"
+                        if [ "$CODE" = 200 ] || [ "$CODE" = 429 ]; then
+                            MODEL=$CANDIDATE
+                            break
+                        fi
+                    done
+                    ;;
                 400 | 401 | 403)
                     warn "Gemini не принял ключ ($MODELS_CODE): $(head -c 200 "$MODELS_FILE" | tr '\n' ' ')"
                     warn "AI не подключён. Проверьте ключ и снова запустите скрипт."
                     clear_ai
                     ;;
+                *) CODE=000 ;;
             esac
             rm -f "$MODELS_FILE"
         fi
         if [ -z "$(get_env AI_API_KEY)" ]; then
             :
-        elif [ -z "$MODEL" ]; then
-            warn "Не удалось выбрать модель Gemini: запустите скрипт ещё раз позже или укажите AI_MODEL в .env (модель с flash в названии)."
-        else
+        elif [ "$CODE" = 200 ]; then
             set_env AI_MODEL "$MODEL"
-            read -r CODE DETAILS <<<"$(check_gemini "$AI_KEY" "$MODEL")"
-            case "$CODE" in
-                200) echo "Gemini отвечает, модель: $MODEL" ;;
-                429) warn "Ключ принят, но лимит запросов сейчас исчерпан — помощник заработает позже." ;;
-                400 | 401 | 403 | 404)
-                    warn "Gemini отклонил запрос ($CODE): ${DETAILS:-без подробностей}"
-                    warn "AI не подключён. Проверьте ключ и снова запустите скрипт."
-                    clear_ai
-                    ;;
-                *) warn "Не удалось проверить Gemini (код ${CODE}): настройки сохранены, проверьте помощника в панели." ;;
-            esac
+            echo "Gemini отвечает, модель: $MODEL"
+        elif [ "$CODE" = 429 ]; then
+            set_env AI_MODEL "$MODEL"
+            warn "Ключ принят, но лимит запросов сейчас исчерпан — помощник заработает позже (модель $MODEL)."
+        elif [ "${MODELS_CODE:-}" = 200 ]; then
+            warn "Ни одна модель Gemini не ответила быстро: сервис перегружен. Запустите скрипт ещё раз позже."
+        else
+            warn "Не удалось связаться с Gemini: настройки сохранены, запустите скрипт ещё раз позже."
         fi
     fi
 fi

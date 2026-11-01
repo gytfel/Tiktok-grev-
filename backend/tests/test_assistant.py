@@ -104,7 +104,8 @@ def test_hashtags_are_normalized():
 
 
 @pytest.mark.parametrize(
-    "status, message", [(401, "ключ"), (429, "лимит"), (404, "модель"), (500, "ошибку 500")]
+    "status, message",
+    [(401, "ключ"), (429, "лимит"), (503, "перегружен"), (404, "модель"), (500, "ошибку 500")],
 )
 def test_service_errors_are_explained(status, message):
     with pytest.raises(ai.AIError, match=message):

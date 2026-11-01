@@ -160,6 +160,8 @@ class AIClient:
             raise AIError("AI-сервис отклонил ключ доступа (AI_API_KEY)")
         if r.status_code == 429:
             raise AIError("Исчерпан лимит AI-сервиса. Попробуйте позже.")
+        if r.status_code in (502, 503, 504):
+            raise AIError("AI-сервис сейчас перегружен. Попробуйте через минуту.")
         if r.status_code == 404:
             raise AIError("AI-сервис не нашёл модель или адрес. Проверьте AI_BASE_URL и AI_MODEL.")
         if r.status_code >= 400:
